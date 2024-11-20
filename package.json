@@ -1,0 +1,25 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "wasm": "wasm-pack build ./crate --target web --release",
+        "dev": "vite",
+        "build": "vite build",
+        "prod": "wasm-pack build ./crate --target web && vite build"
+    },
+    "dependencies": {
+        "@vitejs/plugin-vue": "^4.2.3",
+        "lodash": "^4.17.21",
+        "postcss": "^8.4.24",
+        "postcss-mixins": "^9.0.4",
+        "postcss-nesting": "^11.3.0",
+        "postcss-utilities": "^0.8.4",
+        "simulator": "file:crate/pkg",
+        "vite": "^4.0.0",
+        "vite-plugin-wasm-pack": "^0.1.12",
+        "vue": "^3.2",
+        "vue-chartjs": "^3.5.1",
+        "vue-loader": "^16.8",
+        "vue-template-compiler": "^2.6.14"
+    }
+}
