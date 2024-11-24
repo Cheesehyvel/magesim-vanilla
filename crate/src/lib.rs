@@ -20,11 +20,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use gloo_utils::format::JsValueSerdeExt;
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 /**
  * Constants
@@ -45,7 +40,7 @@ pub fn run_simulation(cfg: JsValue) -> JsValue {
     let config = cfg.into_serde().unwrap();
     let result = sim::run_single(config);
 
-    return serde_wasm_bindgen::to_value(&result).unwrap();
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 #[wasm_bindgen]
@@ -55,5 +50,5 @@ pub fn run_simulations(cfg: JsValue, iterations: i32) -> JsValue {
     let config = cfg.into_serde().unwrap();
     let result = sim::run_multiple(config, iterations);
 
-    return serde_wasm_bindgen::to_value(&result).unwrap();
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }

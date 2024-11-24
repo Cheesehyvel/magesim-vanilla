@@ -10,7 +10,7 @@ pub struct Target {
 impl Target {
     pub fn new(id: i32) -> Self {
         Self {
-            id: id,
+            id,
             name: format!("Target {}", id),
             dmg: 0,
             auras: Default::default(),

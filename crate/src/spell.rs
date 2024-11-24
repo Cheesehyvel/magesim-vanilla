@@ -72,9 +72,9 @@ pub struct Spell {
 impl Spell {
     pub fn new(id: i32, name: String, school: School) -> Self {
         Self {
-            id: id,
-            name: name,
-            school: school,
+            id,
+            name,
+            school,
             mana_cost: 0.0,
             cast_time: 0.0,
             min_dmg: 0.0,
@@ -110,7 +110,7 @@ impl Spell {
             return 0.0;
         }
 
-        return (distance / self.speed).max(0.0);
+        (distance / self.speed).max(0.0)
     }
 }
 
@@ -126,7 +126,7 @@ pub struct SpellInstance {
 impl SpellInstance {
     pub fn new(spell: Spell) -> Self {
         Self {
-            spell: spell,
+            spell,
             result: SpellResult::None,
             dmg: 0.0,
             resist: 0.0,
@@ -136,7 +136,7 @@ impl SpellInstance {
 }
 
 pub fn arcane_missiles() -> Spell {
-    return arcane_missiles_ranked(8);
+    arcane_missiles_ranked(8)
 }
 
 pub fn arcane_missiles_ranked(rank: i32) -> Spell {
@@ -169,11 +169,11 @@ pub fn arcane_missiles_ranked(rank: i32) -> Spell {
         }
     }
 
-    return spell;
+    spell
 }
 
 pub fn fireball() -> Spell {
-    return fireball_ranked(12);
+    fireball_ranked(12)
 }
 
 pub fn fireball_ranked(rank: i32) -> Spell {
@@ -205,7 +205,7 @@ pub fn fireball_ranked(rank: i32) -> Spell {
         }
     }
 
-    return spell;
+    spell
 }
 
 pub fn fireball_dot(rank: i32) -> Spell {
@@ -234,11 +234,11 @@ pub fn fireball_dot(rank: i32) -> Spell {
         }
     }
 
-    return spell;
+    spell
 }
 
 pub fn fire_blast() -> Spell {
-    return fire_blast_ranked(7);
+    fire_blast_ranked(7)
 }
 
 pub fn fire_blast_ranked(rank: i32) -> Spell {
@@ -262,11 +262,11 @@ pub fn fire_blast_ranked(rank: i32) -> Spell {
         }
     }
 
-    return spell;
+    spell
 }
 
 pub fn frostbolt() -> Spell {
-    return frostbolt_ranked(11);
+    frostbolt_ranked(11)
 }
 
 pub fn frostbolt_ranked(rank: i32) -> Spell {
@@ -298,5 +298,5 @@ pub fn frostbolt_ranked(rank: i32) -> Spell {
         }
     }
 
-    return spell;
+    spell
 }

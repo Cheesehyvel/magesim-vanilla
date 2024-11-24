@@ -103,11 +103,11 @@ impl Mage {
 
 impl Unit for Mage {
     fn id(&self) -> i32 {
-        return self.id;
+        self.id
     }
 
     fn name(&self) -> String {
-        return self.name.clone();
+        self.name.clone()
     }
 
     fn reset(&mut self) {
@@ -138,16 +138,16 @@ impl Unit for Mage {
     }
     
     fn level(&self) -> i32 {
-        return self.level;
+        self.level
     }
 
     fn max_mana(&self) -> f64 {
         // Subtract 280 because the first 20 intellect only gives 1 mana instead of 15
-        return self.base_mana + self.stats.int * 15.0 - 280.0;
+        self.base_mana + self.stats.int * 15.0 - 280.0
     }
 
     fn current_mana(&self) -> f64 {
-        return self.mana;
+        self.mana
     }
 
     fn mod_mana(&mut self, mana: f64, t: f64) {
@@ -192,24 +192,24 @@ impl Unit for Mage {
 
         mps+= while_casting.min(1.0) * spi;
 
-        return mps;
+        mps
     }
 
     fn spirit_regen(&self) -> f64 {
         let spi = self.spirit();
-        return 0.25 * spi.min(50.0) + 0.125 * (spi.max(50.0) - 50.0);
+        0.25 * spi.min(50.0) + 0.125 * (spi.max(50.0) - 50.0)
     }
 
     fn mp5(&self) -> f64 {
-        return self.stats.mp5 + self.auras.stats.mp5;
+        self.stats.mp5 + self.auras.stats.mp5
     }
 
     fn intellect(&self) -> f64 {
-        return self.stats.int + self.auras.stats.int;
+        self.stats.int + self.auras.stats.int
     }
 
     fn spirit(&self) -> f64 {
-        return self.stats.spi + self.auras.stats.spi;
+        self.stats.spi + self.auras.stats.spi
     }
 
     fn spell_power(&self, school: School) -> f64 {
@@ -236,11 +236,11 @@ impl Unit for Mage {
             }
         }
 
-        return sp;
+        sp
     }
 
     fn spell_penetration(&self, school: School) -> f64 {
-        return self.stats.spell_penetration + self.auras.stats.spell_penetration;
+        self.stats.spell_penetration + self.auras.stats.spell_penetration
     }
 
     fn spell_hit_chance(&self, spell: &spell::Spell) -> f64 {
@@ -254,7 +254,7 @@ impl Unit for Mage {
             hit+= 2.0 * (self.talents[TALENT_ELEMENTAL_PRECISION] as f64);
         }
 
-        return hit;
+        hit
     }
 
     fn spell_crit_chance(&self, spell: &spell::Spell) -> f64 {
@@ -270,7 +270,7 @@ impl Unit for Mage {
 
         // TODO: More stuff
 
-        return crit;
+        crit
     }
 
     fn base_cast_time(&self, spell: &spell::Spell) -> f64 {
@@ -286,7 +286,7 @@ impl Unit for Mage {
             cast_time = 0.0;
         }
 
-        return cast_time;
+        cast_time
     }
 
     fn spell_haste(&self) -> f64 {
@@ -299,7 +299,7 @@ impl Unit for Mage {
             haste*= 1.1;
         }
 
-        return 1.0 / haste;
+        1.0 / haste
     }
 
     fn set_gcd(&mut self, gcd: f64) {
@@ -311,15 +311,15 @@ impl Unit for Mage {
             return -0.5 * (self.talents[TALENT_IMP_FIRE_BLAST] as f64);
         }
 
-        return 0.0;
+        0.0
     }
 
     fn auras(&mut self) -> &mut aura::Auras {
-        return &mut self.auras;
+        &mut self.auras
     }
 
     fn cooldowns(&mut self) -> &mut cooldown::Cooldowns {
-        return &mut self.cooldowns;
+        &mut self.cooldowns
     }
 
     fn next_event(&mut self, t: f64) -> Event {
@@ -343,12 +343,12 @@ impl Unit for Mage {
             event.spell = Some(self.this_spell(spell::fireball()));
         }
 
-        return event;
+        event
     }
 
     fn on_event(&mut self, event: &Event) -> Vec<Event> {
         let mut events: Vec<Event> = Vec::new();
-        let mut fval: f64;
+        let fval: f64;
 
         match event.event_type {
             EventType::CastSuccess => {
@@ -401,7 +401,7 @@ impl Unit for Mage {
             }
         }
 
-        return events;
+        events
     }
 
 }

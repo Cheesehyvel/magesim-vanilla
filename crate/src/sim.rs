@@ -20,7 +20,7 @@ pub fn new_rng(rng_seed: u64) -> ChaCha8Rng {
         return ChaCha8Rng::seed_from_u64(rng_seed);
     }
 
-    return ChaCha8Rng::from_entropy();
+    ChaCha8Rng::from_entropy()
 }
 
 // Result from one run
@@ -53,7 +53,7 @@ pub fn run_single(config: Config) -> SimulationResult {
     sim.iteration = 1;
     sim.log_enabled = true;
 
-    return sim.run();
+    sim.run()
 }
 
 // Public function to start multiple simulations
@@ -61,8 +61,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
     let mut sim = Sim::new(config);
     sim.log_enabled = false;
 
-    let mut result: SimulationsResult = Default::default();
-    result.iterations = iterations;
+    let mut result: SimulationsResult = SimulationsResult { iterations, ..Default::default() };
 
     for i in 1..=iterations {
         sim.iteration = i;
@@ -86,7 +85,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
         }
     }
 
-    return result;
+    result
 }
 
 fn spawn_player(config: Config) -> Box<dyn Unit> {
@@ -99,7 +98,7 @@ fn spawn_player(config: Config) -> Box<dyn Unit> {
     player.set_config(config);
     player.reset();
 
-    return player;
+    player
 }
 
 // Main sim struct
@@ -120,7 +119,7 @@ impl Sim {
 
     pub fn new(config: Config) -> Self {
         Self {
-            config: config,
+            config,
             queue: vec![],
             t: 0.0,
             duration: 0.0,
@@ -148,7 +147,7 @@ impl Sim {
         result.dps = (result.dmg as f64) / result.t;
         result.log = self.log.clone();
 
-        return result;
+        result
     }
 
     fn reset(&mut self) {
@@ -178,11 +177,11 @@ impl Sim {
         }
     }
 
-    fn unit(&self, unit_id: i32) -> &Box<dyn Unit> {
-        return &self.units[&unit_id];
+    fn unit(&self, unit_id: i32) -> &dyn Unit {
+        return self.units[&unit_id].as_ref();
     }
 
-    fn player(&self) -> &Box<dyn Unit> {
+    fn player(&self) -> &dyn Unit {
         return self.unit(1);
     }
 
@@ -192,15 +191,15 @@ impl Sim {
             dmg+= t.dmg;
         }
 
-        return dmg;
+        dmg
     }
 
     fn main_dmg(&self) -> u64 {
-        return self.targets[0].dmg;
+        self.targets[0].dmg
     }
 
     fn work(&mut self) {
-        while self.queue.len() > 0 {
+        while !self.queue.is_empty() {
             let mut event = self.queue.remove(0);
 
             if event.t > self.duration {
@@ -233,9 +232,9 @@ impl Sim {
 
             EventType::CastFinish => {
                 let spell = event.spell.as_mut().unwrap();
-                spell.this_mana_cost = self.unit(event.unit_id).spell_mana_cost(&spell);
+                spell.this_mana_cost = self.unit(event.unit_id).spell_mana_cost(spell);
 
-                if self.can_cast(event.unit_id, &spell) {
+                if self.can_cast(event.unit_id, spell) {
                     self.on_cast_success(event);
                 } else if event.is_main_event {
                     self.wait(event.unit_id, 0.5, format!("Not enough mana (needed {})", spell.this_mana_cost));
@@ -275,7 +274,7 @@ impl Sim {
             }
 
             EventType::Wait => {
-                if event.text.len() > 0 {
+                if !event.text.is_empty() {
                     self.log(log::LogType::Wait, event.text.clone(), event.unit_id);
                 }
 
@@ -298,7 +297,7 @@ impl Sim {
     }
 
     fn next_event(&mut self, unit_id: i32) {
-        self.log(log::LogType::Debug, format!("Next event"), unit_id);
+        self.log(log::LogType::Debug, "Next event".to_string(), unit_id);
 
         let mut event = self.units.get_mut(&unit_id).unwrap().next_event(self.t);
         event.unit_id = unit_id;
@@ -456,7 +455,7 @@ impl Sim {
             self.apply_dot(event.unit_id, spell, event.target_id);
         } else if spell.is_channeled {
             for i in 1..=spell.ticks {
-                self.push_channeling_tick(event.unit_id, spell, event.target_id, i as u8, 0.0);
+                self.push_channeling_tick(event.unit_id, spell, event.target_id, i, 0.0);
             }
         } else {
             self.push_spell_impact(event.unit_id, spell, event.target_id, spell.travel_time(self.config.distance as f64));
@@ -552,14 +551,13 @@ impl Sim {
             return;
         }
 
-        let auras;
         let aura = event.aura.as_mut().unwrap();
 
-        if event.target_id != 0 {
-            auras = &mut self.targets[event.target_id as usize].auras;
+        let auras = if event.target_id != 0 {
+            &mut self.targets[event.target_id as usize].auras
         } else {
-            auras = self.units.get_mut(&event.unit_id).unwrap().auras();
-        }
+            self.units.get_mut(&event.unit_id).unwrap().auras()
+        };
 
         let old_stacks = auras.stacks(aura.id);
 
@@ -692,7 +690,7 @@ impl Sim {
                 self.remove_spell_ticks(unit_id, spell.id, target_id);
 
                 for i in 1..=spell.ticks {
-                    self.push_dot_tick(unit_id, spell, target_id, i as u8, 0.0);
+                    self.push_dot_tick(unit_id, spell, target_id, i, 0.0);
                 }
             } else {
                 // TODO
@@ -705,7 +703,7 @@ impl Sim {
 
         self.roll_spell_instance(unit_id, &mut instance, target_id);
 
-        return instance;
+        instance
     }
 
     fn roll_spell_instance(&mut self, unit_id: i32, instance: &mut spell::SpellInstance, target_id: i32) {
@@ -725,7 +723,7 @@ impl Sim {
             }
 
             if !instance.spell.is_fixed_dmg {
-                instance.resist = self.spell_dmg_resist(unit_id, &instance);
+                instance.resist = self.spell_dmg_resist(unit_id, instance);
                 instance.dmg-= instance.resist;
             }
 
@@ -742,7 +740,7 @@ impl Sim {
             return spell::SpellResult::Crit;
         }
 
-        return spell::SpellResult::Hit;
+        spell::SpellResult::Hit
     }
 
     fn spell_hit_chance(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
@@ -763,7 +761,7 @@ impl Sim {
 
         hit+= self.unit(unit_id).spell_hit_chance(spell);
 
-        return hit.min(99.0);
+        hit.min(99.0)
     }
 
     fn spell_crit_chance(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
@@ -783,7 +781,7 @@ impl Sim {
             }
         }
 
-        return crit;
+        crit
     }
 
     fn roll_spell_dmg(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
@@ -805,7 +803,7 @@ impl Sim {
 
         dmg*= self.spell_buff_dmg_multiplier(unit_id, spell);
 
-        return dmg;
+        dmg
     }
 
     fn get_spell_power(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
@@ -817,11 +815,11 @@ impl Sim {
     }
 
     fn spell_debuff_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
-        return 1.0;
+        1.0
     }
 
     fn spell_crit_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
-        return 1.0;
+        1.0
     }
 
     /**
@@ -855,12 +853,10 @@ impl Sim {
 
 
         if i >= 3 {
-            for j in 0..4 {
-                percentages[j] = segments[3][j];
-            }
+            percentages.copy_from_slice(&segments[3]);
         } else {
-            for j in 0..4 {
-                percentages[j] = (segments[i][j] * (1.0 - fraction) + segments[i+1][j] * fraction).round();
+            for (j, percentage) in percentages.iter_mut().enumerate() {
+                *percentage = (segments[i][j] * (1.0 - fraction) + segments[i+1][j] * fraction).round();
             }
 
             if ratio < 2.0/3.0 - 0.000001 {
@@ -871,19 +867,19 @@ impl Sim {
         let mut roll: f64 = self.rng.gen_range(0..=99) as f64;
         let mut resistance_multiplier = 0.0;
 
-        for n in 0..4 {
-            if roll < percentages[n] {
+        for (n, percentage) in percentages.iter_mut().enumerate() {
+            if roll < *percentage {
                 resistance_multiplier = (n as f64) * 0.25;
                 break;
             }
 
-            roll-= percentages[n];
+            roll-= *percentage;
         }
 
         if resistance_multiplier > 0.0 {
-            return (instance.dmg * resistance_multiplier).round();
+            (instance.dmg * resistance_multiplier).round()
         } else {
-            return 0.0;
+            0.0
         }
     }
 
@@ -922,7 +918,7 @@ impl Sim {
             // resist_score+= 8.0 * diff;
         }
 
-        return resist_score;
+        resist_score
     }
 
     pub fn log_push(&mut self, log: log::LogEntry) {
@@ -933,8 +929,8 @@ impl Sim {
 
     pub fn log(&mut self, log_type: log::LogType, text: String, unit_id: i32) {
         self.log_push(log::LogEntry {
-            log_type: log_type,
-            text: text,
+            log_type,
+            text,
             unit_name: self.unit(unit_id).name(),
             t: self.t,
             mana: self.unit(unit_id).current_mana(),

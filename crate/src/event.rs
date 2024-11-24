@@ -45,7 +45,7 @@ impl Event {
         Self {
             t: 0.0,
             text: String::new(),
-            event_type: event_type,
+            event_type,
             unit_id: 0,
             target_id: 0,
             mana: 0.0,

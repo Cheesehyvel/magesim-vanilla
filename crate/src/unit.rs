@@ -32,47 +32,47 @@ pub trait Unit {
     fn on_event(&mut self, event: &Event) -> Vec<Event>;
 
     fn level(&self) -> i32 {
-        return 60;
+        60
     }
 
     fn mana_percent(&self) -> f64 {
-        return self.current_mana() / self.max_mana() * 100.0;
+        self.current_mana() / self.max_mana() * 100.0
     }
 
     fn base_cast_time(&self, spell: &Spell) -> f64 {
-        return spell.cast_time;
+        spell.cast_time
     }
 
     fn cast_time(&self, spell: &Spell) -> f64 {
-        return self.base_cast_time(spell) * self.spell_haste();
+        self.base_cast_time(spell) * self.spell_haste()
     }
 
     fn spell_haste(&self) -> f64 {
-        return 1.0;
+        1.0
     }
 
     fn spell_mana_cost(&self, spell: &Spell) -> f64 {
-        return spell.mana_cost;
+        spell.mana_cost
     }
     
     fn spell_coeff_mod(&self, spell: &Spell) -> f64 {
-        return 0.0;
+        0.0
     }
     
     fn spell_cooldown_mod(&self, spell: &Spell) -> f64 {
-        return 0.0;
+        0.0
     }
 
     fn spell_hit_chance(&self, spell: &Spell) -> f64 {
-        return 0.0;
+        0.0
     }
 
     fn spell_crit_chance(&self, spell: &Spell) -> f64 {
-        return 0.0;
+        0.0
     }
     
     fn buff_spell_dmg_multiplier(&self, spell: &Spell) -> f64 {
-        return 1.0;
+        1.0
     }
 
     fn this_spell(&self, mut spell: Spell) -> Spell {
@@ -80,24 +80,24 @@ pub trait Unit {
         spell.this_mana_cost = self.spell_mana_cost(&spell);
         spell.coeff+= self.spell_coeff_mod(&spell);
         spell.cooldown+= self.spell_cooldown_mod(&spell);
-        return spell;
+        spell
     }
 
     fn mana_event(&self, mana: f64, text: String) -> Event {
-        return Event {
+        Event {
             event_type: EventType::ManaGain,
             unit_id: self.id(),
-            text: text,
+            text,
             is_main_event: false,
             ..Default::default()
         }
     }
 
     fn spell_event(&self, spell: Spell, target_id: i32) -> Event {
-        return Event {
+        Event {
             event_type: EventType::CastStart,
             unit_id: self.id(),
-            target_id: target_id,
+            target_id,
             spell: Some(spell),
             is_main_event: false,
             ..Default::default()

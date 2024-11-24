@@ -12,9 +12,9 @@ pub struct Cooldown {
 impl Cooldown {
     pub fn new(id: i32, name: String, duration: f64) -> Self {
         Self {
-            id: id,
-            name: name,
-            duration: duration,
+            id,
+            name,
+            duration,
             ..Default::default()
         }
     }
@@ -47,11 +47,11 @@ impl Cooldowns {
             return self.cooldowns.get(&id).unwrap().duration;
         }
 
-        return 0.0;
+        0.0
     }
 
     pub fn has(&self, id: i32) -> bool {
-        return self.cooldowns.contains_key(&id);
+        self.cooldowns.contains_key(&id)
     }
 
 }

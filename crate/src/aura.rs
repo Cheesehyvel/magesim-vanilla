@@ -48,8 +48,8 @@ pub struct Aura {
 impl Aura {
     pub fn new(id: i32, name: String, duration: f64) -> Self {
         Self {
-            id: id,
-            name: name,
+            id,
+            name,
             stacks: 1,
             stack_increment: 1,
             max_stacks: 1,
@@ -83,7 +83,7 @@ impl Auras {
 
         self.add_stacks(id, add);
 
-        return self.stacks(id);
+        self.stacks(id)
     }
 
     pub fn add_stacks(&mut self, id: i32, stacks: i32) {
@@ -125,15 +125,15 @@ impl Auras {
             return self.auras[&id].stacks;
         }
 
-        return 0;
+        0
     }
 
     pub fn has(&self, id: i32) -> bool {
-        return self.auras.contains_key(&id);
+        self.auras.contains_key(&id)
     }
 
 }
 
 pub fn mqg() -> Aura {
-    return Aura::new(MQG, String::from("Mind Quickening Gem"), 20.0);
+    Aura::new(MQG, String::from("Mind Quickening Gem"), 20.0)
 }
