@@ -53,10 +53,6 @@ const default_config = {
     duration: 40,
     duration_variance: 0,
     avg_spell_dmg: false,
-    race: common.races.Gnome, 
-    talents: baseTalents(),
-    player_stats: baseStats(common.races.Gnome),
-    player_level: 60,
     target_level: 63,
     target_resistance: 0,
     targets: 1,
@@ -69,6 +65,22 @@ const default_config = {
     dmf_dmg: false,
     curse_of_elements: false,
     curse_of_shadows: false,
+    players: [
+        {
+            id: 1,
+            race: common.races.Gnome, 
+            talents: baseTalents(),
+            stats: baseStats(common.races.Gnome),
+            level: 60,
+        },
+        {
+            id: 2,
+            race: common.races.Human, 
+            talents: baseTalents(),
+            stats: baseStats(common.races.Human),
+            level: 60,
+        }
+    ],
 };
 
 const config = reactive(_.cloneDeep(default_config));
@@ -81,6 +93,7 @@ const runSingle = () => {
     const sc = new SimContainer(threads.value, 1, r => {
         is_running.value = false;
         result.value = r;
+        console.log(r);
     }, e => {
         console.error("Error", e);
     });
@@ -94,6 +107,7 @@ const runMultiple = () => {
     const sc = new SimContainer(threads.value, iterations.value, r => {
         is_running.value = false;
         result.value = r;
+        console.log(r);
     }, e => {
         console.error("Error", e);
     });
@@ -160,13 +174,18 @@ const filteredLog = computed(() => {
         </div>
 
         <template v-if="result">
-            <div v-if="result.time">Completed {{ result.iterations }} in {{ result.time.toFixed(2) }}s</div>
+            <div v-if="result.time" style="margin: 0 0 10px;">Completed {{ result.iterations }} in {{ result.time.toFixed(2) }}s</div>
             <template v-if="result.iterations">
-                <div>dps: {{ result.avg_dps.toFixed(2) }} ({{ result.min_dps.toFixed() }} - {{ result.max_dps.toFixed() }})</div>
+                <div><b>Total dps: {{ result.avg_dps.toFixed(2) }} ({{ result.min_dps.toFixed() }} - {{ result.max_dps.toFixed() }})</b></div>
+                <div v-for="(dps, index) in result.player_avg_dps">
+                    <div>Player {{ index+1 }} dps: {{ dps.toFixed(2) }} ({{ result.player_min_dps[index].toFixed() }} - {{ result.player_max_dps[index].toFixed() }})</div>
+                </div>
             </template>
             <template v-else>
-                <div>dmg: {{ result.dmg }}</div>
-                <div>dps: {{ result.dps.toFixed(2) }}</div>
+                <div><b>Total: {{ result.dps.toFixed(2) }} dps ({{ result.dmg }} dmg)</b></div>
+                <div v-for="(dps, index) in result.player_dps">
+                    <div>Player {{ index+1 }}: {{ dps.toFixed(2) }} dps ({{ result.player_dmg[index] }} dmg)</div>
+                </div>
                 <div class="combat-log">
                     <span><label><input type="checkbox" v-model="logTypes" value="CastStart"> Cast start</label></span>&nbsp;&nbsp;&nbsp;
                     <span><label><input type="checkbox" v-model="logTypes" value="CastSuccess"> Cast success</label></span>&nbsp;&nbsp;&nbsp;

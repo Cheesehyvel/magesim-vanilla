@@ -26,11 +26,11 @@ pub fn new_rng(rng_seed: u64) -> ChaCha8Rng {
 // Result from one run
 #[derive(Default, Serialize, Deserialize)]
 pub struct SimulationResult {
+    pub t: f64,
     pub dmg: u64,
     pub dps: f64,
-    pub heal: u64,
-    pub hps: f64,
-    pub t: f64,
+    pub player_dmg: Vec<u64>,
+    pub player_dps: Vec<f64>,
     pub log: Vec<log::LogEntry>,
 }
 
@@ -40,9 +40,9 @@ pub struct SimulationsResult {
     pub avg_dps: f64,
     pub min_dps: f64,
     pub max_dps: f64,
-    pub avg_hps: f64,
-    pub min_hps: f64,
-    pub max_hps: f64,
+    pub player_avg_dps: Vec<f64>,
+    pub player_min_dps: Vec<f64>,
+    pub player_max_dps: Vec<f64>,
     pub iterations: i32,
 }
 
@@ -68,32 +68,41 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
         let r = sim.run();
 
         result.avg_dps+= (r.dps - result.avg_dps) / (i as f64);
-        result.avg_hps+= (r.hps - result.avg_hps) / (i as f64);
-
         if i == 1 || r.dps < result.min_dps {
             result.min_dps = r.dps;
         }
-        if i == 1 || r.hps < result.min_hps {
-            result.min_hps = r.hps;
-        }
-        
         if i == 1 || r.dps > result.max_dps {
             result.max_dps = r.dps;
         }
-        if i == 1 || r.hps > result.max_hps {
-            result.max_hps = r.hps;
+
+        for (j, pdps) in r.player_dps.iter().enumerate() {
+            if i == 1 {
+                result.player_avg_dps.push(0.0);
+                result.player_min_dps.push(0.0);
+                result.player_max_dps.push(0.0);
+            }
+
+            result.player_avg_dps[j]+= (*pdps - result.player_avg_dps[j]) / (i as f64);
+            if i == 1 || *pdps < result.player_min_dps[j] {
+                result.player_min_dps[j] = *pdps;
+            }
+            if i == 1 || *pdps > result.player_max_dps[j] {
+                result.player_max_dps[j] = *pdps;
+            }
         }
     }
 
     result
 }
 
-fn spawn_player(config: Config) -> Box<dyn Unit> {
+fn spawn_player(config: Config, id: i32) -> Box<dyn Unit> {
     let mut player = Box::new(Mage::new());
+    let index = (id as usize) - 1;
 
-    player.level = config.player_level;
-    player.stats = config.player_stats;
-    player.talents = config.talents.clone();
+    player.id = id;
+    player.level = config.players[index].level;
+    player.stats = config.players[index].stats;
+    player.talents = config.players[index].talents.clone();
 
     player.set_config(config);
     player.reset();
@@ -136,8 +145,11 @@ impl Sim {
     pub fn run(&mut self) -> SimulationResult {
         self.reset();
 
-        self.push_mana_regen(1);
-        self.next_event(1);
+        for i in 1..=self.config.players.len() {
+            let id = i as i32;
+            self.push_mana_regen(id);
+            self.next_event(id);
+        }
 
         self.work();
 
@@ -146,6 +158,12 @@ impl Sim {
         result.dmg = self.total_dmg();
         result.dps = (result.dmg as f64) / result.t;
         result.log = self.log.clone();
+
+        for i in 1..=self.config.players.len() {
+            let id = i as i32;
+            result.player_dmg.push(self.unit_total_dmg(id));
+            result.player_dps.push((result.player_dmg[i - 1] as f64) / result.t);
+        }
 
         result
     }
@@ -162,9 +180,12 @@ impl Sim {
         self.queue.clear();
 
         self.units.clear();
-        self.units.insert(1, spawn_player(self.config.clone()));
-        if self.config.rng_seed != 0 {
-            self.units.get_mut(&1).unwrap().new_rng(rng_seed);
+        for i in 1..=self.config.players.len() {
+            let id = i as i32;
+            self.units.insert(id, spawn_player(self.config.clone(), id));
+            if self.config.rng_seed != 0 {
+                self.units.get_mut(&id).unwrap().new_rng(rng_seed);
+            }
         }
 
         self.targets.clear();
@@ -186,16 +207,11 @@ impl Sim {
     }
 
     fn total_dmg(&self) -> u64 {
-        let mut dmg: u64 = 0;
-        for t in self.targets.iter() {
-            dmg+= t.dmg;
-        }
-
-        dmg
+        self.targets.iter().fold(0, |acc, t| acc + t.total_dmg())
     }
 
-    fn main_dmg(&self) -> u64 {
-        self.targets[0].dmg
+    fn unit_total_dmg(&self, unit_id: i32) -> u64 {
+        self.targets.iter().fold(0, |acc, t| acc + t.dmg.get(&unit_id).unwrap_or(&0))
     }
 
     fn work(&mut self) {
@@ -489,8 +505,8 @@ impl Sim {
             instance.dmg*= self.spell_debuff_dmg_multiplier(event.unit_id, &instance.spell, event.target_id);
         }
 
-        if instance.dmg > 0.0 {
-            self.targets[event.target_id as usize].dmg+= instance.dmg as u64;
+        if instance.dmg > 0.0 && event.unit_id != 0 {
+            self.targets[event.target_id as usize].add_dmg(event.unit_id, instance.dmg as u64);
         }
 
         let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);

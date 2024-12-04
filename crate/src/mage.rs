@@ -67,7 +67,6 @@ const TALENT_ICE_BARRIER: usize = 49;
 
 pub struct Mage {
     pub id: i32,
-    pub name: String,
     pub level: i32,
     pub config: Option<Config>,
     pub mana: f64,
@@ -88,7 +87,6 @@ impl Mage {
             mana: 0.0,
             config: None,
             level: 60,
-            name: String::from("Player"),
             base_mana: 0.0,
             t_gcd: 0.0,
             t_mana_spent: 0.0,
@@ -107,7 +105,7 @@ impl Unit for Mage {
     }
 
     fn name(&self) -> String {
-        self.name.clone()
+        format!("Player {}", self.id)
     }
 
     fn reset(&mut self) {
