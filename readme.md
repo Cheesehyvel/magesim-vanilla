@@ -22,5 +22,4 @@ Written in Rust and Vuejs
 * Build front-end only: `npm run build`
 
 You can make a local development server with `npm run dev`. This will start a local webserver and rebuild the front-end when changes occur.  
-Then manually rebuild wasm with `npm run wasm`.  
 For more information about the build process, see [wasm-pack](https://rustwasm.github.io/wasm-pack/book/) and [vite](https://vite.dev/guide/) documentation.
