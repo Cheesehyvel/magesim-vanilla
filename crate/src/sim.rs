@@ -148,7 +148,7 @@ impl Sim {
             let id = i as i32;
             self.push_mana_regen(id);
             if i > 1 && self.config.player_delay > 0.0 {
-                self.push_idle(id, self.config.player_delay, String::from("Player delay"));
+                self.push_idle(id, self.config.player_delay * i as f64, String::from("Player delay"));
             } else {
                 self.next_event(id);
             }

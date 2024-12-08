@@ -2,7 +2,7 @@
 
 Mage simulator for WoW vanilla.
 
-[Live sim website](https://cheesehyvel.github.io/magesim-sod/)
+[Live sim website](https://cheesehyvel.github.io/magesim-vanilla/)
 
 Written in Rust and Vuejs
 
@@ -12,11 +12,15 @@ Written in Rust and Vuejs
 * wasm-pack - [installer](https://rustwasm.github.io/wasm-pack/installer/) or `cargo install wasm-pack`
 * npm
 
+## Setup
+* Install wasm dependencies with `wasm-pack build`
+* Install front-end dependencies with `npm install`
+* Build project with `npm run prod`
+
 ## Development
+* Build wasm only: `npm run wasm`
+* Build front-end only: `npm run build`
 
-WebAssembly and front-end are built by separate processes.  
-Front-end is built with vite, while the webassembly is built with wasm-pack.  
-Easiest way to start development is to run `npm run dev`. This will start a local webserver, and build and watch for changes in the front-end.  
-Then to build the webassembly run `npm run wasm`.
-
-To build for production, simply run `npm run prod`.
+You can make a local development server with `npm run dev`. This will start a local webserver and rebuild the front-end when changes occur.  
+Then manually rebuild wasm with `npm run wasm`.  
+For more information about the build process, see [wasm-pack](https://rustwasm.github.io/wasm-pack/book/) and [vite](https://vite.dev/guide/) documentation.
