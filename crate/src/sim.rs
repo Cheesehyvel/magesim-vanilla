@@ -102,7 +102,6 @@ fn spawn_player(config: Config, id: i32) -> Box<dyn Unit> {
     player.id = id;
     player.level = config.players[index].level;
     player.stats = config.players[index].stats;
-    player.talents = config.players[index].talents.clone();
 
     player.set_config(config);
     player.reset();
@@ -119,7 +118,7 @@ pub struct Sim {
     pub iteration: i32,
     pub rng: ChaCha8Rng,
     pub units: HashMap<i32, Box<dyn Unit>>,
-    pub targets: Vec<Target>,
+    pub targets: HashMap<i32, Target>,
     pub log_enabled: bool,
     pub log: Vec<log::LogEntry>,
 }
@@ -135,7 +134,7 @@ impl Sim {
             iteration: 1,
             rng: new_rng(0),
             units: HashMap::new(),
-            targets: vec![],
+            targets: HashMap::new(),
             log_enabled: false,
             log: vec![],
         }
@@ -148,7 +147,11 @@ impl Sim {
         for i in 1..=self.config.players.len() {
             let id = i as i32;
             self.push_mana_regen(id);
-            self.next_event(id);
+            if i > 1 && self.config.player_delay > 0.0 {
+                self.push_idle(id, self.config.player_delay, String::from("Player delay"));
+            } else {
+                self.next_event(id);
+            }
         }
 
         self.work();
@@ -190,7 +193,7 @@ impl Sim {
 
         self.targets.clear();
         for i in 1..=self.config.targets {
-            self.targets.push(Target::new(i));
+            self.targets.insert(i, Target::new(i));
         }
 
         if self.log_enabled {
@@ -202,16 +205,16 @@ impl Sim {
         return self.units[&unit_id].as_ref();
     }
 
-    fn player(&self) -> &dyn Unit {
-        return self.unit(1);
+    fn target(&self, target_id: i32) -> &Target {
+        return &self.targets[&target_id];
     }
 
     fn total_dmg(&self) -> u64 {
-        self.targets.iter().fold(0, |acc, t| acc + t.total_dmg())
+        self.targets.iter().fold(0, |acc, (id, t)| acc + t.total_dmg())
     }
 
     fn unit_total_dmg(&self, unit_id: i32) -> u64 {
-        self.targets.iter().fold(0, |acc, t| acc + t.dmg.get(&unit_id).unwrap_or(&0))
+        self.targets.iter().fold(0, |acc, (id, t)| acc + t.dmg.get(&unit_id).unwrap_or(&0))
     }
 
     fn work(&mut self) {
@@ -315,7 +318,7 @@ impl Sim {
     fn next_event(&mut self, unit_id: i32) {
         self.log(log::LogType::Debug, "Next event".to_string(), unit_id);
 
-        let mut event = self.units.get_mut(&unit_id).unwrap().next_event(self.t);
+        let mut event = self.units.get_mut(&unit_id).unwrap().next_event(self.t, self.config.targets);
         event.unit_id = unit_id;
         self.handle_event(&mut event);
     }
@@ -426,7 +429,7 @@ impl Sim {
 
         let mut log_text = format!("s[{}]", spell.name);
         if event.target_id != 0 {
-            log_text.push_str(&format!(" on t[{}]", self.targets[event.target_id as usize].name));
+            log_text.push_str(&format!(" on t[{}]", self.target(event.target_id).name));
         }
         self.log(log::LogType::CastStart, log_text, event.unit_id);
 
@@ -506,16 +509,16 @@ impl Sim {
         }
 
         if instance.dmg > 0.0 && event.unit_id != 0 {
-            self.targets[event.target_id as usize].add_dmg(event.unit_id, instance.dmg as u64);
+            self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_dmg(event.unit_id, instance.dmg as u64);
         }
+
+        let si = event.spell_instance.as_ref().unwrap();
+        self.log_spell_impact(event.unit_id, event.spell_instance.as_ref().unwrap(), event.target_id);
 
         let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
         self.handle_events(events);
 
         // TODO: spell logging
-
-        let si = event.spell_instance.as_ref().unwrap();
-        self.log_spell_impact(event.unit_id, event.spell_instance.as_ref().unwrap(), event.target_id);
     }
 
     fn on_spell_tick(&mut self, event: &mut Event) {
@@ -570,12 +573,12 @@ impl Sim {
         let aura = event.aura.as_mut().unwrap();
 
         let auras = if event.target_id != 0 {
-            &mut self.targets[event.target_id as usize].auras
+            &mut self.targets.get_mut(&event.target_id).unwrap().auras
         } else {
             self.units.get_mut(&event.unit_id).unwrap().auras()
         };
 
-        let old_stacks = auras.stacks(aura.id);
+        let old_stacks = auras.stacks(aura.id, aura.owner_id);
 
         if old_stacks < 1 {
             aura.t_gained = self.t;
@@ -585,7 +588,7 @@ impl Sim {
 
         if old_stacks < 1 || aura.stack_refresh {
             aura.t_expires = self.t + aura.duration;
-            self.remove_aura_expiration(event.unit_id, aura.id);
+            self.remove_aura_expiration(event.unit_id, aura.id, event.target_id);
 
             let mut expire = Event::new(EventType::AuraExpire);
             expire.unit_id = event.unit_id;
@@ -600,7 +603,11 @@ impl Sim {
             self.handle_events(events);
 
             let a = event.aura.as_ref().unwrap();
-            self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, a.stacks), event.unit_id);
+            if event.target_id != 0 {
+                self.log(log::LogType::AuraGain, format!("a[{}] ({}) -> t[{}]", a.name, stacks, self.target(event.target_id).name), event.unit_id);
+            } else {
+                self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, stacks), event.unit_id);
+            }
         }
     }
 
@@ -612,9 +619,9 @@ impl Sim {
         let auras = self.units.get_mut(&event.unit_id).unwrap().auras();
         let aura = event.aura.as_ref().unwrap();
 
-        if auras.has(aura.id) {
-            auras.remove(aura.id);
-            self.remove_aura_expiration(event.unit_id, aura.id);
+        if auras.has(aura.id, aura.owner_id) {
+            auras.remove(aura.id, aura.owner_id);
+            self.remove_aura_expiration(event.unit_id, aura.id, event.target_id);
 
             let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
             self.handle_events(events);
@@ -681,15 +688,15 @@ impl Sim {
     }
 
     fn remove_spell_impacts(&mut self, unit_id: i32, spell_id: i32, target_id: i32) {
-        self.queue.retain(|ev| ev.event_type != EventType::SpellImpact || ev.unit_id != unit_id || ev.spell_instance.as_ref().is_none() || ev.spell_instance.as_ref().unwrap().spell.id != spell_id || ev.target_id != target_id);
+        self.queue.retain(|ev| ev.event_type != EventType::SpellImpact || ev.unit_id != unit_id || ev.target_id != target_id || ev.spell_instance.as_ref().is_none() || ev.spell_instance.as_ref().unwrap().spell.id != spell_id);
     }
 
     fn remove_spell_ticks(&mut self, unit_id: i32, spell_id: i32, target_id: i32) {
-        self.queue.retain(|ev| ev.event_type != EventType::SpellTick || ev.unit_id != unit_id || ev.spell_instance.as_ref().is_none() || ev.spell_instance.as_ref().unwrap().spell.id != spell_id || ev.target_id != target_id);
+        self.queue.retain(|ev| ev.event_type != EventType::SpellTick || ev.unit_id != unit_id || ev.target_id != target_id || ev.spell_instance.as_ref().is_none() || ev.spell_instance.as_ref().unwrap().spell.id != spell_id);
     }
 
-    fn remove_aura_expiration(&mut self, unit_id: i32, id: i32) {
-        self.queue.retain(|ev| ev.event_type != EventType::AuraExpire || ev.unit_id != unit_id || ev.aura.as_ref().is_none() || ev.aura.as_ref().unwrap().id != id);
+    fn remove_aura_expiration(&mut self, unit_id: i32, id: i32, target_id: i32) {
+        self.queue.retain(|ev| ev.event_type != EventType::AuraExpire || ev.unit_id != unit_id || ev.target_id != target_id || ev.aura.as_ref().is_none() || ev.aura.as_ref().unwrap().id != id);
     }
 
     fn remove_cooldown_expiration(&mut self, unit_id: i32, id: i32) {
@@ -823,19 +830,38 @@ impl Sim {
     }
 
     fn get_spell_power(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
-        return self.unit(unit_id).spell_power(spell.school);
+        self.unit(unit_id).spell_power(spell.school)
     }
 
     fn spell_buff_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell) -> f64 {
-        return self.unit(unit_id).buff_spell_dmg_multiplier(spell);
+        self.unit(unit_id).buff_spell_dmg_multiplier(spell)
     }
 
     fn spell_debuff_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
-        1.0
+        let mut dmg = 1.0;
+
+        let auras = &self.targets.get_mut(&target_id).expect("TARGET_NOT_FOUND").auras;
+
+        if auras.has_any(aura::FIRE_VULNERABILITY) {
+            dmg*= 1.0 + 0.03 * auras.stacks(aura::FIRE_VULNERABILITY, 0) as f64;
+        }
+
+        dmg
     }
 
     fn spell_crit_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
-        1.0
+        let mut base = 1.5;
+        let mut multi = 1.0;
+
+        base*= self.unit(unit_id).spell_crit_dmg_base_multiplier(spell);
+
+        if spell.is_proc {
+            return base;
+        }
+
+        multi*= self.unit(unit_id).spell_crit_dmg_multiplier(spell);
+
+        (base - 1.0) * multi + 1.0
     }
 
     /**
@@ -859,7 +885,7 @@ impl Sim {
         let cap: f64 = (self.unit(unit_id).level() as f64) * 5.0;
         let ratio: f64 = resist_score / cap;
         let i = (ratio * 3.0).floor() as usize;
-        let fraction = ratio * 3.0 - 1.0;
+        let fraction = ratio * 3.0 - i as f64;
         let mut percentages: [f64; 4] = [0.0; 4];
         let mut segments: [[f64; 4]; 4] = [[0.0; 4]; 4];
         segments[0] = [100.0, 0.0, 0.0, 0.0];
@@ -960,7 +986,7 @@ impl Sim {
     pub fn log_spell_impact(&mut self, unit_id: i32, instance: &spell::SpellInstance, target_id: i32) {
         self.log_push(log::LogEntry {
             log_type: log::LogType::SpellImpact,
-            text: format!("s[{}] -> t[{}]", instance.spell.name, self.targets[target_id as usize].name),
+            text: format!("s[{}] -> t[{}]", instance.spell.name, self.target(target_id).name),
             unit_name: self.unit(unit_id).name(),
             t: self.t,
             mana: self.unit(unit_id).current_mana(),

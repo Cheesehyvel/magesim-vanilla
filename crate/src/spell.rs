@@ -1,11 +1,8 @@
 use crate::common::School;
 use serde::{Serialize, Deserialize};
 
-pub const ARCANE_EXPLOSION: i32 = 8437;
 pub const ARCANE_MISSILES: i32 = 4145;
-pub const BLIZZARD: i32 = 10;
 pub const COLD_SNAP: i32 = 11958;
-pub const CONE_OF_COLD: i32 = 120;
 pub const EVOCATION: i32 = 12051;
 pub const FIREBALL: i32 = 8400;
 pub const FIREBALL_DOT: i32 = -8400; // fake id
@@ -295,6 +292,33 @@ pub fn frostbolt_ranked(rank: i32) -> Spell {
             spell.max_dmg = 20.0;
             spell.cast_time = 1.5;
             spell.coeff = 0.163;
+        }
+    }
+
+    spell
+}
+
+pub fn scorch() -> Spell {
+    scorch_ranked(7)
+}
+
+pub fn scorch_ranked(rank: i32) -> Spell {
+    let mut spell = Spell::new(SCORCH, String::from("Scorch"), School::Fire);
+
+    spell.rank = rank;
+    spell.coeff = 0.429;
+    spell.cast_time = 1.5;
+
+    match rank {
+        7 => {
+            spell.min_dmg = 237.0;
+            spell.max_dmg = 280.0;
+            spell.mana_cost = 150.0;
+        }
+        _ => {
+            spell.min_dmg = 56.0;
+            spell.max_dmg = 69.0;
+            spell.mana_cost = 50.0;
         }
     }
 

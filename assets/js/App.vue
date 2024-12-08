@@ -20,7 +20,6 @@ const baseStats = (race, level) => {
         spell_penetration: 0,
     };
 
-    // TODO: Race base stats
     if (race == common.races.Gnome) {
         stats.int = 132;
         stats.spi = 120;
@@ -45,7 +44,42 @@ const baseStats = (race, level) => {
 };
 
 const baseTalents = () => {
-    return new Array(64).fill(0);
+    let talents = new Array(64).fill(0);
+    
+    talents[1] = 2;
+    talents[2] = 3;
+    talents[6] = 5;
+    talents[7] = 2;
+    talents[8] = 3;
+    talents[12] = 2;
+    talents[17] = 5;
+    talents[19] = 5;
+    talents[21] = 3;
+    talents[22] = 2;
+    talents[24] = 1;
+    talents[26] = 3;
+    talents[28] = 3;
+    talents[29] = 3;
+    talents[31] = 5;
+    talents[32] = 1;
+    talents[35] = 3;
+
+    return talents;
+};
+
+let player_id = 1;
+const basePlayer = () => {
+    return {
+        id: player_id++,
+        race: common.races.Gnome, 
+        talents: baseTalents(),
+        stats: baseStats(common.races.Gnome),
+        level: 60,
+        mage_armor: true,
+        mana_spring: false,
+        imp_mana_spring: false,
+        dmf_dmg: false,
+    }
 };
 
 const default_config = {
@@ -57,29 +91,16 @@ const default_config = {
     target_resistance: 0,
     targets: 1,
     distance: 30,
-    reaction_time: 300,
+    reaction_time: 0.3,
+    player_delay: 0.1,
     pre_cast: false,
-    mage_armor: true,
-    mana_spring: false,
-    imp_mana_spring: false,
-    dmf_dmg: false,
     curse_of_elements: false,
     curse_of_shadows: false,
     players: [
-        {
-            id: 1,
-            race: common.races.Gnome, 
-            talents: baseTalents(),
-            stats: baseStats(common.races.Gnome),
-            level: 60,
-        },
-        {
-            id: 2,
-            race: common.races.Human, 
-            talents: baseTalents(),
-            stats: baseStats(common.races.Human),
-            level: 60,
-        }
+        basePlayer(),
+        basePlayer(),
+        basePlayer(),
+        basePlayer(),
     ],
 };
 
@@ -219,6 +240,9 @@ const filteredLog = computed(() => {
                                 <td>
                                     <span v-if="log.dmg" class="format-dmg" :class="['spell-result-'+css(log.spell_result)]">
                                         {{ log.dmg.toFixed() }}
+                                    </span>
+                                    <span v-if="log.resist">
+                                        (-{{ log.resist.toFixed() }})
                                     </span>
                                     <span v-if="log.spell_result == 'Miss'">
                                         Miss

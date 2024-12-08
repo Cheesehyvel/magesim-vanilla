@@ -28,8 +28,12 @@ pub trait Unit {
     fn set_gcd(&mut self, gcd: f64);
     fn auras(&mut self) -> &mut aura::Auras;
     fn cooldowns(&mut self) -> &mut cooldown::Cooldowns;
-    fn next_event(&mut self, t: f64) -> Event;
+    fn next_event(&mut self, t: f64, num_targets: i32) -> Event;
     fn on_event(&mut self, event: &Event) -> Vec<Event>;
+
+    fn owner_id(&self) -> i32 {
+        self.id()
+    }
 
     fn level(&self) -> i32 {
         60
@@ -70,6 +74,14 @@ pub trait Unit {
     fn spell_crit_chance(&self, spell: &Spell) -> f64 {
         0.0
     }
+
+    fn spell_crit_dmg_base_multiplier(&self, spell: &Spell) -> f64 {
+        1.0
+    }
+
+    fn spell_crit_dmg_multiplier(&self, spell: &Spell) -> f64 {
+        1.0
+    }
     
     fn buff_spell_dmg_multiplier(&self, spell: &Spell) -> f64 {
         1.0
@@ -99,6 +111,19 @@ pub trait Unit {
             unit_id: self.id(),
             target_id,
             spell: Some(spell),
+            is_main_event: false,
+            ..Default::default()
+        }
+    }
+
+    fn aura_event(&self, mut aura: aura::Aura, target_id: i32) -> Event {
+        aura.owner_id = self.id();
+
+        Event {
+            event_type: EventType::AuraGain,
+            unit_id: self.id(),
+            target_id,
+            aura: Some(aura),
             is_main_event: false,
             ..Default::default()
         }

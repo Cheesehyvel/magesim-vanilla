@@ -1,6 +1,7 @@
 use crate::aura;
 use crate::common::School;
 use crate::config::Config;
+use crate::config::PlayerConfig;
 use crate::cooldown;
 use crate::event::Event;
 use crate::event::EventType;
@@ -97,6 +98,10 @@ impl Mage {
             rng: ChaCha8Rng::from_entropy(),
         }
     }
+
+    fn player_config(&self) -> &PlayerConfig {
+        self.config.as_ref().unwrap().players.iter().find(|p| p.id == self.id).unwrap()
+    }
 }
 
 impl Unit for Mage {
@@ -167,24 +172,24 @@ impl Unit for Mage {
         let mut spi = self.spirit_regen();
         let mut while_casting = 0.0;
 
-        if self.config.as_ref().unwrap().mage_armor {
+        if self.player_config().mage_armor {
             while_casting+= 0.3;
         }
-        if self.talents[TALENT_ARCANE_MEDITATION] > 0 {
-            while_casting+= 0.05 * (self.talents[TALENT_ARCANE_MEDITATION] as f64);
+        if self.player_config().talents[TALENT_ARCANE_MEDITATION] > 0 {
+            while_casting+= 0.05 * (self.player_config().talents[TALENT_ARCANE_MEDITATION] as f64);
         }
         if self.t_mana_spent + 5.0 < t {
             while_casting = 1.0;
         }
-        if self.auras.has(aura::INNERVATE) {
+        if self.auras.has_any(aura::INNERVATE) {
             spi*= 5.0;
             while_casting = 1.0;
         }
-        if self.auras.has(aura::EVOCATION) {
+        if self.auras.has_any(aura::EVOCATION) {
             spi*= 16.0;
             while_casting = 1.0;
         }
-        if self.auras.has(aura::BLUE_DRAGON) {
+        if self.auras.has_any(aura::BLUE_DRAGON) {
             while_casting = 1.0;
         }
 
@@ -244,12 +249,12 @@ impl Unit for Mage {
     fn spell_hit_chance(&self, spell: &spell::Spell) -> f64 {
         let mut hit = self.stats.hit + self.auras.stats.hit;
 
-        if spell.school == School::Arcane && self.talents[TALENT_ARCANE_FOCUS] > 0 {
-            hit+= 2.0 * (self.talents[TALENT_ARCANE_FOCUS] as f64);
+        if spell.school == School::Arcane && self.player_config().talents[TALENT_ARCANE_FOCUS] > 0 {
+            hit+= 2.0 * (self.player_config().talents[TALENT_ARCANE_FOCUS] as f64);
         }
 
-        if (spell.school == School::Fire || spell.school == School::Frost) && self.talents[TALENT_ELEMENTAL_PRECISION] > 0 {
-            hit+= 2.0 * (self.talents[TALENT_ELEMENTAL_PRECISION] as f64);
+        if (spell.school == School::Fire || spell.school == School::Frost) && self.player_config().talents[TALENT_ELEMENTAL_PRECISION] > 0 {
+            hit+= 2.0 * (self.player_config().talents[TALENT_ELEMENTAL_PRECISION] as f64);
         }
 
         hit
@@ -262,25 +267,55 @@ impl Unit for Mage {
             return crit;
         }
 
-        if self.talents[TALENT_ARCANE_INSTABILITY] > 0 {
-            crit+= 1.0 * (self.talents[TALENT_ARCANE_INSTABILITY] as f64);
+        if self.player_config().talents[TALENT_INCINERATE] > 0 && (spell.id == spell::FIRE_BLAST || spell.id == spell::SCORCH) {
+            crit+= 2.0 * self.player_config().talents[TALENT_INCINERATE] as f64;
         }
 
-        // TODO: More stuff
+        if self.player_config().talents[TALENT_ARCANE_INSTABILITY] > 0 {
+            crit+= self.player_config().talents[TALENT_ARCANE_INSTABILITY] as f64;
+        }
+
+        if self.player_config().talents[TALENT_CRITICAL_MASS] > 0 && spell.school == School::Fire {
+            crit+= 2.0 * self.player_config().talents[TALENT_CRITICAL_MASS] as f64;
+        }
+
+        if self.auras.has_any(aura::COMBUSTION) && spell.school == School::Fire {
+            crit+= 10.0 * self.auras.stacks(aura::COMBUSTION, self.id) as f64;
+        }
 
         crit
+    }
+
+    fn spell_crit_dmg_multiplier(&self, spell: &spell::Spell) -> f64 {
+        let mut multi = 1.0;
+
+        if spell.school == School::Frost && self.player_config().talents[TALENT_ICE_SHARDS] > 0 {
+            multi+= self.player_config().talents[TALENT_ICE_SHARDS] as f64 * 0.2;
+        }
+
+        multi
+    }
+    
+    fn buff_spell_dmg_multiplier(&self, spell: &spell::Spell) -> f64 {
+        let mut dmg = 1.0;
+
+        if self.player_config().dmf_dmg {
+            dmg*= 1.1;
+        }
+
+        dmg
     }
 
     fn base_cast_time(&self, spell: &spell::Spell) -> f64 {
         let mut cast_time = spell.cast_time;
 
-        if spell.id == spell::FROSTBOLT && self.talents[TALENT_IMP_FROSTBOLT] > 0 {
-            cast_time-= 0.1 * (self.talents[TALENT_IMP_FROSTBOLT] as f64);
+        if spell.id == spell::FROSTBOLT && self.player_config().talents[TALENT_IMP_FROSTBOLT] > 0 {
+            cast_time-= 0.1 * (self.player_config().talents[TALENT_IMP_FROSTBOLT] as f64);
         }
-        if spell.id == spell::FIREBALL && self.talents[TALENT_IMP_FIREBALL] > 0 {
-            cast_time-= 0.1 * (self.talents[TALENT_IMP_FIREBALL] as f64);
+        if spell.id == spell::FIREBALL && self.player_config().talents[TALENT_IMP_FIREBALL] > 0 {
+            cast_time-= 0.1 * (self.player_config().talents[TALENT_IMP_FIREBALL] as f64);
         }
-        if self.auras.has(aura::PRESENCE_OF_MIND) && !spell.is_channeled {
+        if self.auras.has_any(aura::PRESENCE_OF_MIND) && !spell.is_channeled {
             cast_time = 0.0;
         }
 
@@ -290,10 +325,10 @@ impl Unit for Mage {
     fn spell_haste(&self) -> f64 {
         let mut haste = 1.0;
 
-        if self.auras.has(aura::MQG) {
+        if self.auras.has_any(aura::MQG) {
             haste*= 1.33;
         }
-        if self.auras.has(aura::BERSERKING) {
+        if self.auras.has_any(aura::BERSERKING) {
             haste*= 1.1;
         }
 
@@ -305,8 +340,8 @@ impl Unit for Mage {
     }
     
     fn spell_cooldown_mod(&self, spell: &spell::Spell) -> f64 {
-        if spell.id == spell::FIRE_BLAST && self.talents[TALENT_IMP_FIRE_BLAST] > 0 {
-            return -0.5 * (self.talents[TALENT_IMP_FIRE_BLAST] as f64);
+        if spell.id == spell::FIRE_BLAST && self.player_config().talents[TALENT_IMP_FIRE_BLAST] > 0 {
+            return -0.5 * (self.player_config().talents[TALENT_IMP_FIRE_BLAST] as f64);
         }
 
         0.0
@@ -320,7 +355,7 @@ impl Unit for Mage {
         &mut self.cooldowns
     }
 
-    fn next_event(&mut self, t: f64) -> Event {
+    fn next_event(&mut self, t: f64, num_targets: i32) -> Event {
         let mut event = Event::new(EventType::None);
 
         // GCD
@@ -333,10 +368,11 @@ impl Unit for Mage {
 
         // TODO: Rotation
         event.event_type = EventType::CastStart;
-        if !self.cooldowns.has(spell::FIRE_BLAST) {
+        event.target_id = 1;
+        if t < 2.0 {
+            event.spell = Some(self.this_spell(spell::scorch()));
+        } else if !self.cooldowns.has(spell::FIRE_BLAST) {
             event.spell = Some(self.this_spell(spell::fire_blast()));
-        } else if self.rng.gen_range(0..=1) == 0 {
-            event.spell = Some(self.this_spell(spell::arcane_missiles()));
         } else {
             event.spell = Some(self.this_spell(spell::fireball()));
         }
@@ -366,6 +402,13 @@ impl Unit for Mage {
 
                     if instance.spell.id == spell::FIREBALL {
                         events.push(self.spell_event(self.this_spell(spell::fireball_dot(instance.spell.rank)), event.target_id));
+                    }
+
+                    if instance.spell.id == spell::SCORCH && self.player_config().talents[TALENT_IMP_SCORCH] > 0 {
+                        let imp_sc = self.player_config().talents[TALENT_IMP_SCORCH] as i32;
+                        if imp_sc == 3 || self.rng.gen_range(0..2) < imp_sc {
+                            events.push(self.aura_event(aura::fire_vulnerability(), event.target_id));
+                        }
                     }
                 }
             }
