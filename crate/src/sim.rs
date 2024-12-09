@@ -23,33 +23,35 @@ pub fn new_rng(rng_seed: u64) -> ChaCha8Rng {
     ChaCha8Rng::from_entropy()
 }
 
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct PlayerResult {
+    pub dmg: u64,
+    pub dps: f64,
+}
+
 // Result from one run
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SimulationResult {
     pub t: f64,
     pub dmg: u64,
     pub dps: f64,
-    pub player_dmg: Vec<u64>,
-    pub player_dps: Vec<f64>,
+    pub players: Vec<PlayerResult>,
     pub log: Vec<log::LogEntry>,
 }
 
 // Result from multiple runs
 #[derive(Default, Serialize, Deserialize)]
 pub struct SimulationsResult {
+    pub iterations: i32,
     pub avg_dps: f64,
     pub min_dps: f64,
     pub max_dps: f64,
-    pub player_avg_dps: Vec<f64>,
-    pub player_min_dps: Vec<f64>,
-    pub player_max_dps: Vec<f64>,
-    pub iterations: i32,
+    pub players: Vec<PlayerResult>,
 }
 
 // Public function to start a single simulation
 pub fn run_single(config: Config) -> SimulationResult {
     let mut sim = Sim::new(config);
-
     sim.iteration = 1;
     sim.log_enabled = true;
 
@@ -75,19 +77,11 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
             result.max_dps = r.dps;
         }
 
-        for (j, pdps) in r.player_dps.iter().enumerate() {
+        for (j, pr) in r.players.iter().enumerate() {
             if i == 1 {
-                result.player_avg_dps.push(0.0);
-                result.player_min_dps.push(0.0);
-                result.player_max_dps.push(0.0);
-            }
-
-            result.player_avg_dps[j]+= (*pdps - result.player_avg_dps[j]) / (i as f64);
-            if i == 1 || *pdps < result.player_min_dps[j] {
-                result.player_min_dps[j] = *pdps;
-            }
-            if i == 1 || *pdps > result.player_max_dps[j] {
-                result.player_max_dps[j] = *pdps;
+                result.players = r.players.clone();
+            } else {
+                result.players[j].dps+= (pr.dps - result.players[j].dps) / (i as f64);
             }
         }
     }
@@ -100,6 +94,7 @@ fn spawn_player(config: Config, id: i32) -> Box<dyn Unit> {
     let index = (id as usize) - 1;
 
     player.id = id;
+    player.name = config.players[index].name.clone();
     player.level = config.players[index].level;
     player.stats = config.players[index].stats;
 
@@ -121,6 +116,7 @@ pub struct Sim {
     pub targets: HashMap<i32, Target>,
     pub log_enabled: bool,
     pub log: Vec<log::LogEntry>,
+    pub result: SimulationResult,
 }
 
 impl Sim {
@@ -137,6 +133,7 @@ impl Sim {
             targets: HashMap::new(),
             log_enabled: false,
             log: vec![],
+            result: SimulationResult::default(),
         }
     }
 
@@ -156,19 +153,19 @@ impl Sim {
 
         self.work();
 
-        let mut result: SimulationResult = Default::default();
-        result.t = self.duration;
-        result.dmg = self.total_dmg();
-        result.dps = (result.dmg as f64) / result.t;
-        result.log = self.log.clone();
+        self.result.dmg = self.total_dmg();
+        self.result.dps = (self.result.dmg as f64) / self.result.t;
+        self.result.log = self.log.clone();
 
         for i in 1..=self.config.players.len() {
-            let id = i as i32;
-            result.player_dmg.push(self.unit_total_dmg(id));
-            result.player_dps.push((result.player_dmg[i - 1] as f64) / result.t);
+            let dmg = self.unit_total_dmg(i as i32);
+            self.result.players.push(PlayerResult {
+                dmg,
+                dps: (dmg as f64) / self.result.t
+            });
         }
 
-        result
+        self.result.clone()
     }
 
     fn reset(&mut self) {
@@ -179,6 +176,8 @@ impl Sim {
 
         self.t = 0.0;
         self.duration = self.config.duration - self.config.duration_variance + self.rng.gen_range(0.0..=self.config.duration_variance) * 2.0;
+        self.result = SimulationResult::default();
+        self.result.t = self.duration;
 
         self.queue.clear();
 

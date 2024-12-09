@@ -1,10 +1,12 @@
 import Worker from "./sim_worker.js?worker";
 
 class SimContainer {
-    constructor(threads, iterations, onSuccess, onError) {
+    constructor(threads, iterations, config, onSuccess, onError, onProgress) {
+        this.config = _.cloneDeep(config);
         this.threads = threads;
-        this.workers = Array(this.threads);
         this.iterations = parseInt(iterations);
+        this.workers = [];
+        this.runs = [];
         this.start_time = null;
 
         if (!this.threads || isNaN(this.threads))
@@ -12,10 +14,21 @@ class SimContainer {
         if (!this.iterations || isNaN(this.iterations))
             throw "Invalid iterations";
 
+        let run_itr = Math.max(100, Math.min(1000, Math.ceil(this.iterations/this.threads)));
+        let num_workers = Math.min(this.threads, Math.ceil(this.iterations/run_itr));
+
+        for (let total = 0; total < this.iterations; total+= run_itr) {
+            run_itr = Math.min(run_itr, this.iterations - total);
+            this.runs.push({
+                iterations: run_itr,
+                started: false,
+            });
+        }
+
         let sum = null;
 
-        for (let i=0; i<this.threads; i++) {
-            this.workers[i] = new Worker();
+        for (let i=0; i<num_workers; i++) {
+            this.workers.push(new Worker());
             this.workers[i].onmessage = (event) => {
                 let data = event.data;
 
@@ -37,22 +50,24 @@ class SimContainer {
                             sum.max_dps = data.result.max_dps;
                         sum.avg_dps = (sum.avg_dps * sum.iterations + data.result.avg_dps * data.result.iterations) / (sum.iterations + data.result.iterations);
 
-                        for (let j=0; j<sum.player_avg_dps.length; j++) {
-                            if (data.result.player_min_dps[j] < sum.player_min_dps[j])
-                                sum.player_min_dps[j] = data.result.player_min_dps[j];
-                            if (data.result.player_max_dps[j] > sum.player_max_dps[j])
-                                sum.player_max_dps[j] = data.result.player_max_dps[j];
-                            sum.player_avg_dps[j] = (sum.player_avg_dps[j] * sum.iterations + data.result.player_avg_dps[j] * data.result.iterations) / (sum.iterations + data.result.iterations);
+                        for (let j=0; j<sum.players.length; j++) {
+                            sum.players[j].dps = (sum.players[j].dps * sum.iterations + data.result.players[j].dps * data.result.iterations) / (sum.iterations + data.result.iterations);
                         }
 
                         sum.iterations+= data.result.iterations;
                     }
 
-                    this.workers[i].terminate();
+                    if (onProgress && i%4 == 0)
+                        onProgress(sum);
 
                     if (this.iterations == 1 || sum.iterations == this.iterations) {
+                        this.workers[i].terminate();
                         sum.time = (Date.now() - this.start_time) / 1000;
                         onSuccess(sum);
+                    }
+                    else {
+                        if (!this.startNextRun(i))
+                            this.workers[i].terminate();
                     }
                 }
             };
@@ -64,23 +79,34 @@ class SimContainer {
         }
     }
 
-    start(config) {
-        config = _.cloneDeep(config);
-        let seed = config.rng_seed;
+    start() {
         this.start_time = Date.now();
-        for (let i=0; i<this.workers.length; i++) {
-            let worker_iterations = Math.floor((this.iterations+i)/this.threads);
-            if (worker_iterations > 0) {
-                if (config.rng_seed > 0)
-                    config.rng_seed+= worker_iterations;
+        for (let i=0; i<this.workers.length; i++)
+            this.startRun(i, i);
+    }
 
-                this.workers[i].postMessage({
-                    type: "start",
-                    config: config,
-                    iterations: worker_iterations,
-                });
+    startRun(worker_index, run_index) {
+        let run = this.runs[run_index];
+        let config = _.cloneDeep(this.config);
+        config.rng_seed = config.rng_seed + run_index * run.iterations;
+
+        this.workers[worker_index].postMessage({
+            type: "start",
+            config: config,
+            iterations: run.iterations,
+        });
+        run.started = true;
+    }
+
+    startNextRun(worker_index) {
+        for (let i=0; i<this.runs.length; i++) {
+            if (!this.runs[i].started) {
+                this.startRun(worker_index, i);
+                return true;
             }
         }
+
+        return false;
     }
 }
 

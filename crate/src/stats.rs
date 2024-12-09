@@ -14,6 +14,7 @@ pub struct Stats {
     pub sp_nature: f64,
     pub sp_shadow: f64,
     pub spell_penetration: f64,
+    pub mana: f64,
 }
 
 impl Stats {
@@ -30,6 +31,7 @@ impl Stats {
         self.sp_nature = 0.0;
         self.sp_shadow = 0.0;
         self.spell_penetration = 0.0;
+        self.mana = 0.0;
     }
 }
 
@@ -50,6 +52,7 @@ impl std::ops::Add for Stats {
             sp_nature: self.sp_nature + other.sp_nature,
             sp_shadow: self.sp_shadow + other.sp_shadow,
             spell_penetration: self.spell_penetration + other.spell_penetration,
+            mana: self.mana + other.mana,
         }
     }
 }
@@ -69,6 +72,7 @@ impl std::ops::AddAssign for Stats {
             sp_nature: self.sp_nature + other.sp_nature,
             sp_shadow: self.sp_shadow + other.sp_shadow,
             spell_penetration: self.spell_penetration + other.spell_penetration,
+            mana: self.mana + other.mana,
         }
     }
 }
@@ -90,6 +94,7 @@ impl std::ops::Sub for Stats {
             sp_nature: self.sp_nature - other.sp_nature,
             sp_shadow: self.sp_shadow - other.sp_shadow,
             spell_penetration: self.spell_penetration - other.spell_penetration,
+            mana: self.mana - other.mana,
         }
     }
 }
@@ -109,6 +114,7 @@ impl std::ops::SubAssign for Stats {
             sp_nature: self.sp_nature - other.sp_nature,
             sp_shadow: self.sp_shadow - other.sp_shadow,
             spell_penetration: self.spell_penetration - other.spell_penetration,
+            mana: self.mana - other.mana,
         }
     }
 }
@@ -130,6 +136,7 @@ impl std::ops::Mul<f64> for Stats {
             sp_nature: self.sp_nature * rhs,
             sp_shadow: self.sp_shadow * rhs,
             spell_penetration: self.spell_penetration * rhs,
+            mana: self.mana * rhs,
         }
     }
 }

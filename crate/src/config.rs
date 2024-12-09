@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct PlayerConfig {
-    pub id: i32,
+    pub name: String,
     pub race: Race,
     pub stats: Stats,
     pub level: i32,
@@ -12,9 +12,9 @@ pub struct PlayerConfig {
 
     // Buffs
     pub mage_armor: bool,
-    pub dmf_dmg: bool,
     pub mana_spring: bool,
     pub imp_mana_spring: bool,
+    pub dmf_dmg: bool,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
