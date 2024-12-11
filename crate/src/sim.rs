@@ -27,6 +27,7 @@ pub fn new_rng(rng_seed: u64) -> ChaCha8Rng {
 pub struct PlayerResult {
     pub dmg: u64,
     pub dps: f64,
+    pub name: String,
 }
 
 // Result from one run
@@ -43,7 +44,7 @@ pub struct SimulationResult {
 #[derive(Default, Serialize, Deserialize)]
 pub struct SimulationsResult {
     pub iterations: i32,
-    pub avg_dps: f64,
+    pub dps: f64,
     pub min_dps: f64,
     pub max_dps: f64,
     pub players: Vec<PlayerResult>,
@@ -69,7 +70,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
         sim.iteration = i;
         let r = sim.run();
 
-        result.avg_dps+= (r.dps - result.avg_dps) / (i as f64);
+        result.dps+= (r.dps - result.dps) / (i as f64);
         if i == 1 || r.dps < result.min_dps {
             result.min_dps = r.dps;
         }
@@ -141,10 +142,10 @@ impl Sim {
     pub fn run(&mut self) -> SimulationResult {
         self.reset();
 
-        for i in 1..=self.config.players.len() {
-            let id = i as i32;
+        for i in 0..self.config.players.len() {
+            let id = (i as i32) + 1;
             self.push_mana_regen(id);
-            if i > 1 && self.config.player_delay > 0.0 {
+            if i > 0 && self.config.player_delay > 0.0 {
                 self.push_idle(id, self.config.player_delay * i as f64, String::from("Player delay"));
             } else {
                 self.next_event(id);
@@ -160,6 +161,7 @@ impl Sim {
         for i in 1..=self.config.players.len() {
             let dmg = self.unit_total_dmg(i as i32);
             self.result.players.push(PlayerResult {
+                name: self.units[&(i as i32)].name(),
                 dmg,
                 dps: (dmg as f64) / self.result.t
             });

@@ -1,16 +1,18 @@
 :root {
-    --color-primary: #0080c0;
-    --color-primary-light: #5e9bce;
+    --color-primary: #06d;
+    --color-primary-light: #08f;
     --color-primary-faded: #78a8d5;
-    --color-bg: #00010f;
+    --color-bg1: #000116;
+    --color-bg2: #00031f;
+    --color-bg3: #00052f;
+    --color-bg4: #00073f;
+    --color-bg-faded: #071026;
     --color-grey: #aaa;
-    --color-stroke: #303035;
-    --color-stroke-light: #6b6b6f;
+    --color-stroke: rgba(255,255,255,0.1);
+    --color-stroke-light: rgba(255,255,255,0.15);
     --color-danger: #c22;
     --color-danger-light: #f66;
     --fs-regular: 14px;
-    --fs-small: 14px;
-    --fs-large: 16px;
     --ff: "Source Sans Pro", Arial, sans-serif;
 }
 

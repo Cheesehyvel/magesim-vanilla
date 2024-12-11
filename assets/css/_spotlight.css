@@ -1,0 +1,58 @@
+.spotlight {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 300;
+
+    &.open {
+        display: block;
+
+        .dark {
+            animation: fade 0.2s ease forwards;
+        }
+
+        .content {
+            animation: fade 0.3s ease forwards, moveInFromBelow 0.3s ease forwards;
+        }
+    }
+
+    .dark {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: rgba(0,0,0,0.6);
+        transform: translateZ(0);
+    }
+
+    .light {
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        padding: 20px 0;
+        transform: translate3d(-50%, 0, 0);
+        max-width: 90vw;
+    }
+
+    .content {
+        margin: 0 auto;
+        width: 600px;
+        box-sizing: border-box;
+        max-width: 100%;
+
+        > .default {
+            padding: 30px;
+            background: var(--color-bg2);
+        }
+
+        .confirm-text {
+            font-size: 16px;
+        }
+    }
+
+    &.small .content { width: 400px; }
+    &.large .content { width: 900px; }
+}

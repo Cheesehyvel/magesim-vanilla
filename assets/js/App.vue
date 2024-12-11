@@ -1,7 +1,8 @@
 <script setup>
 import SimContainer from "./sim_container";
-import { computed, ref, reactive, watch } from "vue";
+import { computed, ref, reactive, watch, onMounted, nextTick } from "vue";
 import common from "./common";
+import icons from "./icons";
 import items from "./items";
 import _ from "lodash";
 
@@ -29,6 +30,25 @@ const itemUrl = (id) => {
 };
 const spellUrl = (id) => {
     return "https://www.wowhead.com/classic/spell="+id;
+};
+const convertRace = (from) => {
+    if (from == "Gnome")
+        return "Troll";
+    if (from == "Human")
+        return "Undead";
+    if (from == "Troll")
+        return "Gnome";
+    if (from == "Undead")
+        return "Human";
+    return from;
+};
+const otherSlot = (slot) => {
+    var n = slot.substr(-1);
+    n = parseInt(n);
+    if (isNaN(n))
+        return null;
+    n = n == 1 ? 2 : 1;
+    return slot.substr(0, slot.length-1)+n;
 };
 
 /**
@@ -60,7 +80,7 @@ const baseStats = (race) => {
 const addStats = (a, b) => {
     let stats = common.stats();
     for (let key in stats)
-        stats[key] = _.get(a, key, 0) + _.get(b, key, 0);
+        stats[key] = parseFloat(_.get(a, key, 0)) + parseFloat(_.get(b, key, 0));
     return stats;
 };
 
@@ -219,26 +239,26 @@ const defaultConfig = () => {
 /**
  * Player
  */
-const simBasePlayer = () => {
+const simDefaultPlayer = () => {
     return {
         name: "Player",
-        race: "Gnome",
+        race: "Undead",
         talents: parseTalents("https://www.wowhead.com/classic/talent-calc/mage/230005230002-5052000123033151-003"),
-        stats: baseStats("Gnome"),
+        stats: baseStats("Undead"),
         level: 60,
         mage_armor: true,
-        mana_spring: false,
-        imp_mana_spring: false,
+        mana_spring: true,
+        imp_mana_spring: true,
         dmf_dmg: false,
     };
 };
-const basePlayer = () => {
-    return _.merge(simBasePlayer(), {
+const defaultPlayer = () => {
+    return _.merge(simDefaultPlayer(), {
         id: uuid(),
         arcane_intellect: true,
         divine_spirit: true,
         motw: true,
-        imp_motw: false,
+        imp_motw: true,
         moonkin_aura: false,
         blessing_of_wisdom: true,
         imp_blessing_of_wisdom: true,
@@ -255,23 +275,29 @@ const basePlayer = () => {
         elixir_frost_power: true,
         elixir_arcane: false,
         elixir_greater_arcane: true,
-        food: common.foods.INT10,
+        food: common.foods.RUNN_TUM,
         flask: common.flasks.SUPREME_POWER,
-        weapon_oil: common.weapon_oils.BLESSED_WIZARD,
+        weapon_oil: common.weapon_oils.BRILLIANT_WIZARD,
         loadout: baseLoadout(),
-        extra_stats: common.stats(),
+        bonus_stats: common.stats(),
     });
 };
 const createPlayer = (name) => {
-    let player = basePlayer();
+    let player = defaultPlayer();
     player.name = name;
-    currentRaid.value.players.push(player);
+    activeRaid.value.players.push(player);
 };
 const visualStats = (player) => {
     let stats = simStats(player);
     stats.mana+= 1213 + stats.int*15 - 280;
     return stats;
 };
+const activePlayerId = ref(null);
+const activePlayer = computed(() => {
+    if (!activeRaid.value)
+        return null;
+    return activeRaid.value.players.find(player => player.id == activePlayerId.value);
+});
 
 /**
  * Raid
@@ -280,13 +306,32 @@ const defaultRaid = (name) => {
     return {
         id: uuid(),
         name: "My raid",
+        faction: "Horde",
         config: defaultConfig(),
-        players: [basePlayer()],
+        players: [defaultPlayer()],
     }
 };
 const loadRaids = () => {
     let raids = window.localStorage.getItem("raids");
-    return raids ? JSON.parse(raids) : [defaultRaid()];
+    if (raids)
+        raids = JSON.parse(raids);
+
+    if (_.isEmpty(raids)) {
+        raids = [defaultRaid()];
+    }
+    else {
+        // Convert old data
+        for (let raid of raids) {
+            for (let player of raid.players) {
+                if (player.hasOwnProperty("extra_stats")) {
+                    player.bonus_stats = player.extra_stats;
+                    delete player.extra_stats;
+                }
+            }
+        }
+    }
+
+    return raids;
 };
 const saveRaids = (raids) => {
     window.localStorage.setItem("raids", JSON.stringify(raids));
@@ -294,11 +339,14 @@ const saveRaids = (raids) => {
 const raids = ref(loadRaids());
 const deleteRaid = (id) => {
     raids.value = raids.value.filter(raid => raid.id != id);
+    if (!raids.value.length)
+        raids.value.push(defaultRaid());
+    if (settings.raid_id == id)
+        settings.raid_id = raids.value[0].id;
     saveRaids(raids.value);
 };
-const currentRaidId = ref(raids.value[0].id);
-const currentRaid = computed(() => {
-    return raids.value.find(raid => raid.id == currentRaidId.value);
+const activeRaid = computed(() => {
+    return raids.value.find(raid => raid.id == settings.raid_id);
 });
 
 /**
@@ -308,11 +356,23 @@ const defaultSettings = () => {
     return {
         iterations: 20000,
         threads: navigator.hardwareConcurrency,
+        raid_id: null,
     }
 };
 const loadSettings = () => {
     let settings = window.localStorage.getItem("settings");
-    return settings ? JSON.parse(settings) : defaultSettings();
+    if (settings) {
+        settings = JSON.parse(settings);
+        settings = _.merge(defaultSettings(), settings);
+    }
+    else {
+        settings = defaultSettings();
+    }
+
+    if (!settings.raid_id || !raids.value.find(raid => raid.id == settings.raid_id))
+        settings.raid_id = raids.value[0].id;
+
+    return settings;
 };
 const saveSettings = () => {
     window.localStorage.setItem("settings", JSON.stringify(settings));
@@ -329,7 +389,7 @@ const simStats = (player) => {
     let faction = raceFaction(player.race);
     let stats = baseStats(player.race);
     stats = addStats(stats, loadoutStats(player.loadout));
-    stats = addStats(stats, player.extra_stats);
+    stats = addStats(stats, player.bonus_stats);
 
     if (player.arcane_intellect)
         stats.int+= 31;
@@ -357,11 +417,11 @@ const simStats = (player) => {
     else if (player.elixir_arcane)
         stats.sp_arcane+= 20;
 
-    if (player.food == common.foods.INT10)
+    if (player.food == common.foods.RUNN_TUM)
         stats.int+= 10;
-    else if (player.food == common.foods.SPIRIT12)
+    else if (player.food == common.foods.WELL_FED)
         stats.spi+= 12;
-    else if (player.food == common.foods.MP8)
+    else if (player.food == common.foods.NIGHTFIN)
         stats.mp5+= 8;
 
     if (player.flask == common.flasks.SUPREME_POWER)
@@ -425,10 +485,10 @@ const simStats = (player) => {
     return stats;
 };
 const simConfig = () => {
-    let config = _.cloneDeep(currentRaid.value.config);
+    let config = _.cloneDeep(activeRaid.value.config);
     config.players = [];
-    for (let p of currentRaid.value.players) {
-        let player = simBasePlayer();
+    for (let p of activeRaid.value.players) {
+        let player = simDefaultPlayer();
         for (var key in player)
             player[key] = _.cloneDeep(p[key]);
         player.stats = simStats(p);
@@ -457,10 +517,11 @@ const runMultiple = () => {
     const sc = new SimContainer(settings.threads, settings.iterations, simConfig(), r => {
         isRunning.value = false;
         result.value = r;
+        console.log("Simulation completed in "+r.time.toFixed(2)+"s");
     }, e => {
         console.error("Error", e);
     }, p => {
-        simProgress.dps = p.avg_dps;
+        simProgress.dps = p.dps;
         simProgress.progress = p.iterations / iterations;
     });
 
@@ -497,94 +558,1129 @@ const formatLogText = (log) => {
 const formatLogType = (type) => {
     return _.capitalize(_.kebabCase(type).replace(/-/g, " "));
 };
-const logTypes = ref([
-    "CastSuccess", "SpellImpact", "Wait", "AuraGain", "AuraExpire",
-]);
+const filterPlayer = ref(null);
+const filterPlayerOptions = computed(() => {
+    if (!result.value)
+        return [];
+    let options = [];
+    for (let player of result.value.players)
+        options.push({value: player.name, title: player.name});
+    return options;
+});
 const filteredLog = computed(() => {
     if (!result.value)
         return [];
-    return result.value.log.filter(log => logTypes.value.indexOf(log.log_type) != -1);
+    let log = result.value.log.filter(log => log.log_type != "Debug");
+    if (filterPlayer.value)
+        log = log.filter(log => log.unit_name == filterPlayer.value);
+    return log;
 });
+
+
+/**
+ * Confirmation
+ */
+const confirmSpotlight = ref();
+const confirmation = reactive({
+    options: {},
+});
+const confirm = (options) => {
+    let defaults = {
+        text: "Are you sure?",
+        confirm: "Yes",
+        abort: "No",
+        continue: () => {},
+    };
+    confirmation.options = _.merge(defaults, options);
+    confirmSpotlight.value.open();
+
+    return new Promise((resolve, reject) => {
+        confirmation.options.continue = resolve;
+    });
+};
+const confirmationContinue = () => {
+    confirmation.options.continue();
+    confirmSpotlight.value.close();
+};
+const confirmationCancel = () => {
+    confirmSpotlight.value.close();
+};
+
+/**
+ * Front end variables
+ */
+const raidSelectOpen = ref(false);
+const confirmDeleteRaid = (raid) => {
+    raidSelectOpen.value = false;
+    confirm({
+        text: "Are you sure you want to delete "+raid.name+"?",
+        confirm: "Delete",
+        abort: "Cancel",
+    }).then(() => {
+        deleteRaid(raid.id);
+    });
+};
+const selectRaid = (id) => {
+    settings.raid_id = id;
+    raidSelectOpen.value = false;
+};
+const raidEdit = ref();
+const raidModel = ref(defaultRaid());
+const createRaidOpen = () => {
+    raidModel.value = defaultRaid();
+    raidModel.value.name = "";
+    raidSelectOpen.value = false;
+    raidEdit.value.open(true);
+};
+const editRaidOpen = (raid) => {
+    raidModel.value = _.cloneDeep(raid);
+    raidSelectOpen.value = false;
+    raidEdit.value.open(true);
+};
+const updateRaid = () => {
+    raidEdit.value.close();
+    let raid = _.cloneDeep(raidModel.value);
+    let index = raids.value.findIndex(r => r.id == raid.id);
+    if (index != -1) {
+        if (raids.value[index].faction != raid.faction) {
+            for (let player of raid.players)
+                player.race = convertRace(player.race);
+        }
+        raids.value[index] = raid;
+    }
+    else {
+        raids.value.unshift(raid);
+        settings.raid_id = raid.id;
+    }
+};
+
+const confirmDeletePlayer = (player) => {
+    raidSelectOpen.value = false;
+    confirm({
+        text: "Are you sure you want to delete "+player.name+"?",
+        confirm: "Delete",
+        abort: "Cancel",
+    }).then(() => {
+        activeRaid.value.players = activeRaid.value.players.filter(p => p.id != player.id);
+        if (activePlayerId.value == player.id) {
+            if (activeRaid.value.players.length)
+                activePlayerId.value = activeRaid.value.players[0].id;
+            else
+                activePlayerId.value = null;
+        }
+    });
+};
+const selectPlayer = (id) => {
+    activePlayerId.value = id;
+};
+const playerEdit = ref();
+const playerModel = ref(defaultPlayer());
+const createPlayerOpen = () => {
+    if (!activeRaid.value)
+        return;
+    playerModel.value = defaultPlayer();
+    playerModel.value.name = "";
+    playerModel.value.race = activeRaid.value.faction == "Alliance" ? "Gnome" : "Undead";
+    playerEdit.value.open(true);
+};
+const editPlayerOpen = (player) => {
+    playerModel.value = _.cloneDeep(player);
+    playerEdit.value.open(true);
+};
+const updatePlayer = () => {
+    playerEdit.value.close();
+    if (!activeRaid.value)
+        return;
+    let player = _.cloneDeep(playerModel.value);
+    let index = activeRaid.value.players.findIndex(r => r.id == player.id);
+    if (index != -1)
+        activeRaid.value.players[index] = player;
+    else
+        activeRaid.value.players.push(player);
+};
+const playerStats = ref(common.stats());
+
+const activeTab = ref("config");
+const activeSlot = ref("head");
+const activeGearType = ref("gear");
+const activeResultTab = ref("overview");
+
+const factionOptions = [
+    { value: "Alliance", title: "Alliance" },
+    { value: "Horde", title: "Horde" },
+];
+const raceOptions = computed(() => {
+    if (activeRaid.value && activeRaid.value.faction == "Alliance") {
+        return [
+            { value: "Gnome", title: "Gnome" },
+            { value: "Human", title: "Human" },
+        ];
+    }
+
+    return [
+        { value: "Troll", title: "Troll" },
+        { value: "Undead", title: "Undead" },
+    ];
+});
+const specFromTalents = (talents) => {
+    let count = [0, 0, 0];
+    for (let i = 0; i < talents.length; i++) {
+        if (talents[i] > 0)
+            count[Math.floor(i / 16)]++;
+    }
+
+    let max = 0, tree = 0;
+    for (let i = 0; i < count.length; i++) {
+        if (count[i] > max) {
+            max = count[i];
+            tree = i;
+        }
+    }
+
+    let trees = ["arcane", "fire", "frost"];
+
+    return trees[tree];
+};
+const playerSpecIcon = (player) => {
+    return "spec_"+specFromTalents(player.talents);
+};
+const otherPlayerOptions = computed(() => {
+    if (!activeRaid.value)
+        return {};
+    let options = [];
+    for (let player of activeRaid.value.players) {
+        if (player.id == activePlayerId.value)
+            continue;
+        options.push({value: player.id, title: player.name});
+    }
+    return options;
+});
+const copyLoadoutPlayer = ref(null);
+const copyLoadout = (playerId) => {
+    if (!activePlayer.value)
+        return;
+    let player = activeRaid.value.players.find(p => p.id == playerId);
+    if (player && player.id != activePlayerId.value) {
+        activePlayer.value.loadout = _.cloneDeep(player.loadout);
+        refreshTooltips();
+    }
+    nextTick(() => { copyLoadoutPlayer.value = null });
+};
+const playerConfigExclusive = (e, key, others) => {
+    if (!_.isArray(others))
+        others = [others];
+
+    if (e.target.checked) {
+        for (let other of others) {
+            if (other == key)
+                continue;
+            activePlayer.value[other] = false;
+        }
+    }
+};
+const playerRadioToggle = (val, key) => {
+    if (val == activePlayer.value[key])
+        activePlayer.value[key] = 0;
+};
+
+const paperdollSlots = (pos) => {
+    if (pos == "left") {
+        return [
+            "head", "neck", "shoulder",
+            "back", "chest", "wrist", "hands",
+        ];
+    }
+    if (pos == "right") {
+        return [
+            "waist", "legs", "feet",
+            "finger1", "finger2", "trinket1", "trinket2",
+        ];
+    }
+    if (pos == "bottom") {
+        return [
+            "main_hand", "off_hand", "ranged",
+        ];
+    }
+};
+const paperdollClick = (slot, type) => {
+    activeSlot.value = slot;
+    activeGearType.value = type ? type : "gear";
+    nextTick(() => {
+        if (itemSearchInput.value)
+            itemSearchInput.value.focus();
+    });
+};
+const itemSearch = ref("");
+const itemSearchInput = ref();
+const itemSorting = ref({
+    name: null,
+    order: null,
+});
+const itemSort = (items, sorting) => {
+    if (!sorting || !sorting.name)
+        return items;
+
+    let type = null;
+    for (let i=0; i<items.length; i++) {
+        let value = _.get(items[i], sorting.name, null);
+        if (value !== null) {
+            type = typeof(value);
+            if (type == "object") {
+                if (_.isArray(value))
+                    type = "array";
+                else
+                    continue;
+            }
+            break;
+        }
+    }
+
+    if (type === null)
+        return items;
+
+    return items.sort((a, b) => {
+        let av = _.get(a, sorting.name, null);
+        let bv = _.get(b, sorting.name, null);
+        let result = 0;
+
+        if (sorting.name == "phase") {
+            if (!av) av = 1;
+            if (!bv) bv = 1;
+        }
+
+        if (type == "string") {
+            try { av = av.toString(); } catch(e) { av = ""; };
+            try { bv = bv.toString(); } catch(e) { bv = ""; };
+            result = av.localeCompare(bv);
+        }
+        else if (type == "number") {
+            av = parseFloat(av);
+            bv = parseFloat(bv);
+            if (isNaN(av)) av = 0;
+            if (isNaN(bv)) bv = 0;
+            result = av - bv;
+        }
+        else if (type == "array") {
+            av = _.get(av, "length", 0);
+            bv = _.get(bv, "length", 0);
+            result = av - bv;
+        }
+
+        if (sorting.order == "desc" && result != 0)
+            result = result < 0 ? 1 : -1;
+
+        return result;
+    });
+};
+const itemList = computed(() => {
+    let data = {
+        type: activeGearType.value,
+        slot: loadoutSlotToItemSlot(activeSlot.value),
+        list: [],
+    };
+
+    if (data.type == "enchant")
+        data.list = _.clone(items.enchants[data.slot]);
+    else
+        data.list = _.clone(items.gear[data.slot]);
+
+    data.list = data.list.filter(item => {
+        if (itemSearch.value.length) {
+            if (item.title.toLowerCase().indexOf(itemSearch.value.toLowerCase()) == -1)
+                return false;
+        }
+        if (item.hasOwnProperty("faction") && item.faction != activeRaid.value.faction)
+            return false;
+        return true;
+    });
+
+    data.list = itemSort(data.list, itemSorting.value);
+
+    return data;
+});
+const itemClick = (item) => {
+    if (!activePlayer.value || !activeSlot.value)
+        return;
+
+    let loadout = activePlayer.value.loadout[activeSlot.value];
+    let key = activeGearType.value == "enchant" ? "enchant_id" : "item_id";
+    if (loadout[key] == item.id) {
+        loadout[key] = null;
+    }
+    else {
+        if (key == "item_id" && activeSlot.value == "off_hand") {
+            let mh = getItem("main_hand", activePlayer.value.loadout["main_hand"].item_id);
+            if (mh.twohand)
+                return;
+        }
+        else if (key == "item_id" && activeSlot.value == "main_hand" && item.twohand) {
+            activePlayer.value.loadout["off_hand"].item_id = null;
+        }
+
+        if (item.unique) {
+            let other = otherSlot(activeSlot.value);
+            if (other && activePlayer.value.loadout[other].item_id) {
+                if (item.unique === true) {
+                    if (activePlayer.value.loadout[other].item_id == item.id)
+                        return;
+                }
+                // Unique category
+                else {
+                    let otherItem = getItem(other, activePlayer.value.loadout[other].item_id);
+                    if (otherItem && otherItem.unique && otherItem.unique === item.unique)
+                        return;
+                }
+            }
+        }
+
+        loadout[key] = item.id;
+    }
+
+    refreshTooltips();
+};
+
+const refreshTooltips = () => {
+    if (window.$WowheadPower) {
+        window.$WowheadPower.refreshLinks();
+        nextTick(window.$WowheadPower.refreshLinks);
+    }
+};
+
+const resultHidden = ref(false);
+const resultOpen = ref(false);
+const closeResult = () => {
+    resultOpen.value = false;
+};
+const openResult = () => {
+    resultOpen.value = true;
+};
 
 /**
  * Watchers
  */
 watch(settings, saveSettings, {deep : true});
+watch(raids, saveRaids, {deep : true});
+watch(() => settings.raid_id, (value) => {
+    let raid = raids.value.find(raid => raid.id == value);
+    if (raid && raid.players.length) {
+        activePlayerId.value = raid.players[0].id;
+    }
+    else {
+        activePlayerId.value = null;
+        activeTab.value = "config";
+    }
+});
+watch(() => activeTab.value, refreshTooltips);
+watch(() => activeGearType.value, refreshTooltips);
+watch(() => activeSlot.value, refreshTooltips);
+watch(() => activePlayer.value, () => {
+    playerStats.value = visualStats(activePlayer.value);
+    refreshTooltips();
+}, {deep: true});
+watch(() => result.value, () => {
+    activeResultTab.value = "overview";
+    resultHidden.value = false;
+});
+
+/**
+ * Events
+ */
+onMounted(() => {
+    if (activeRaid.value && activeRaid.value.players.length) {
+        activePlayerId.value = activeRaid.value.players[0].id;
+        activeTab.value = "loadout";
+        nextTick(() => {
+            playerStats.value = visualStats(activePlayer.value);
+        });
+    }
+});
 </script>
 
 <template>
     <div class="app">
-        <div style="margin: 20px 0">
-            <input type="text" v-model.number="currentRaid.config.duration" style="width: 50px" :disabled="isRunning"> duration<br>
-            <input type="text" v-model.number="settings.iterations" style="width: 50px" :disabled="isRunning"> iterations<br>
-            <input type="text" v-model.number="settings.threads" style="width: 50px" :disabled="isRunning"> threads<br><br>
-            <button class="btn btn-primary" @click="runMultiple" :disabled="isRunning">Run multiple</button>&nbsp;
-            <button class="btn btn-secondary" @click="runSingle" :disabled="isRunning">Run single</button>
+        <div id="main">
+            <div class="left">
+                <div class="raid">
+                    <div class="current-raid" @click="raidSelectOpen = !raidSelectOpen">
+                        <template v-if="activeRaid">
+                            <wowicon class="faction" :icon="activeRaid.faction" />
+                            <div class="name">{{ activeRaid.name }}</div>
+                            <micon class="caret" icon="keyboard_arrow_down" />
+                        </template>
+                        <template v-else>
+                            <div class="name"><i>No raid</i></div>
+                        </template>
+                    </div>
+                    <div class="raid-select" v-if="raidSelectOpen">
+                        <div class="raids">
+                            <div
+                                class="raid"
+                                :class="{active: activeRaid.value == raid.id}"
+                                v-for="raid in raids"
+                                :key="raid.id"
+                                @click="selectRaid(raid.id)"
+                            >
+                                <wowicon class="faction" :icon="raid.faction" />
+                                <span class="middle info">
+                                    <div class="name">{{ raid.name }}</div>
+                                    <div class="players">{{ raid.players.length }} players</div>
+                                </span>
+                                <micon class="delete" icon="delete" @click.stop="confirmDeleteRaid(raid)" />
+                            </div>
+                        </div>
+                        <button class="create" @click="createRaidOpen">
+                            <micon icon="add" />
+                            <span class="middle">Create raid</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="team" v-if="activeRaid">
+                    <div class="players">
+                        <div
+                            class="player"
+                            :class="{active: activePlayerId == player.id}"
+                            v-for="player in activeRaid.players"
+                            :key="player.id"
+                            @click="selectPlayer(player.id)"
+                        >
+                            <wowicon class="race" :icon="player.race" />
+                            <wowicon class="spec" :icon="playerSpecIcon(player)" />
+                            <div class="middle name">{{ player.name }}</div>
+                            <micon class="delete" icon="delete" @click.stop="confirmDeletePlayer(player)" />
+                        </div>
+                    </div>
+                    <button class="create" @click="createPlayerOpen">
+                        <micon icon="add" />
+                        <span class="middle">Add player</span>
+                    </button>
+                </div>
+
+                <div class="sim">
+                    <template v-if="isRunning">
+                        <div class="progress">
+                            <div class="circle middle">
+                                <progress-circle :value="simProgress.progress" />
+                                <div class="center">{{ (simProgress.progress * 100).toFixed() }}%</div>
+                            </div>
+                            <div class="dps middle">
+                                <div class="title">DPS</div>
+                                <div class="value">{{ simProgress.dps.toFixed(1) }}</div>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div class="run">
+                            <div><button class="btn btn-primary block large" @click="runMultiple">Run</button></div>
+                            <div><button class="btn btn-text" @click="runSingle">Single iteration</button></div>
+                        </div>
+                        <div class="result" v-if="result && !resultHidden">
+                            <div class="close" @click="resultHidden = true">
+                                <micon icon="close" />
+                            </div>
+                            <div class="dps">
+                                <span class="value">{{ result.players[0].dps.toFixed(1) }}</span>
+                                <span class="title">{{ result.players[0].name }}</span>
+                            </div>
+                            <div class="dps">
+                                <span class="value">{{ result.dps.toFixed(1) }}</span>
+                                <span class="title">Total</span>
+                            </div>
+                            <button class="link" @click.stop="openResult">
+                                <span class="middle">See result</span>
+                                <micon icon="keyboard_double_arrow_right" />
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="right" v-if="activeRaid">
+                <div class="tabs">
+                    <div class="tab" :class="{active: activeTab == 'config'}" @click="activeTab = 'config'">
+                        Config
+                    </div>
+                    <template v-if="activePlayer">
+                        <div class="tab" :class="{active: activeTab == 'loadout'}" @click="activeTab = 'loadout'">
+                            Gear
+                        </div>
+                    </template>
+                </div>
+
+                <div class="config" v-if="activeTab == 'config'">
+                    <div class="config-box config-raid">
+                        <div class="title">Raid config</div>
+                        <div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Name</label>
+                                    <input type="text" v-model.number="activeRaid.name">
+                                </div>
+                                <div class="form-item">
+                                    <label>Faction</label>
+                                    <select-simple v-model="activeRaid.faction" :options="factionOptions" :empty-option="false" />
+                                </div>
+                            </div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Fight duration</label>
+                                    <input type="text" v-model.number="activeRaid.config.duration">
+                                </div>
+                                <div class="form-item">
+                                    <label>Variance (+/-)</label>
+                                    <input type="text" v-model.number="activeRaid.config.duration_variance">
+                                </div>
+                            </div>
+                            <div class="form-item">
+                                <label>Debuffs</label>
+                                <div class="icon-checkboxes">
+                                    <label>
+                                        <input type="checkbox" v-model="activeRaid.config.curse_of_elements">
+                                        <wowicon icon="curse_of_elements" />
+                                        <tooltip>Curse of the Elements</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activeRaid.config.curse_of_shadows">
+                                        <wowicon icon="curse_of_shadows" />
+                                        <tooltip>Curse of Shadows</tooltip>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Target level</label>
+                                    <input type="text" v-model.number="activeRaid.config.target_level">
+                                </div>
+                                <div class="form-item">
+                                    <label>Target resistance</label>
+                                    <input type="text" v-model.number="activeRaid.config.target_resistance">
+                                </div>
+                            </div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>
+                                        <span class="middle">Distance from target</span>
+                                        <help>This only affects travel time.<br>No range checks are made.</help>
+                                    </label>
+                                    <input type="text" v-model.number="activeRaid.config.distance">
+                                </div>
+                                <div class="form-item">
+                                    <label>Number of targets</label>
+                                    <input type="text" v-model.number="activeRaid.config.targets">
+                                </div>
+                            </div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>
+                                        <span class="middle">Reaction time</span>
+                                        <help>In seconds</help>
+                                    </label>
+                                    <input type="text" v-model.number="activeRaid.config.reaction_time">
+                                </div>
+                                <div class="form-item">
+                                    <label>
+                                        <span class="middle">Player staggering</span>
+                                        <help>Seconds between the start of each player.</help>
+                                    </label>
+                                    <input type="text" v-model.number="activeRaid.config.player_delay">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-box config-player" v-if="activePlayer">
+                        <div class="title">Player config</div>
+                        <div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Name</label>
+                                    <input type="text" v-model.number="activePlayer.name">
+                                </div>
+                                <div class="form-item">
+                                    <label>Race</label>
+                                    <select-simple v-model="activePlayer.race" :options="raceOptions" :empty-option="false" />
+                                </div>
+                            </div>
+                            <div class="form-item">
+                                <label>Buffs</label>
+                                <div class="icon-checkboxes">
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.arcane_intellect">
+                                        <wowicon icon="arcane_intellect" />
+                                        <tooltip>Arcane Intellect</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.mage_armor">
+                                        <wowicon icon="mage_armor" />
+                                        <tooltip>Mage Armor</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.divine_spirit">
+                                        <wowicon icon="divine_spirit" />
+                                        <tooltip>Divine Spirit</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.motw">
+                                        <wowicon icon="motw" />
+                                        <tooltip>Mark of the Wild</tooltip>
+                                    </label>
+                                    <label v-if="activePlayer.motw">
+                                        <input type="checkbox" v-model="activePlayer.imp_motw">
+                                        <wowicon icon="imp_motw" />
+                                        <tooltip>Improved Mark of the Wild</tooltip>
+                                        <micon class="imp" icon="add" />
+                                    </label>
+                                    <template v-if="activeRaid.faction == 'Alliance'">
+                                        <label>
+                                            <input type="checkbox" v-model="activePlayer.blessing_of_kings">
+                                            <wowicon icon="blessing_of_kings" />
+                                            <tooltip>Blessing of Kings</tooltip>
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" v-model="activePlayer.blessing_of_wisdom">
+                                            <wowicon icon="blessing_of_wisdom" />
+                                            <tooltip>Blessing of Wisdom</tooltip>
+                                        </label>
+                                    </template>
+                                    <template v-else>
+                                        <label>
+                                            <input type="checkbox" v-model="activePlayer.mana_spring">
+                                            <wowicon icon="mana_spring" />
+                                            <tooltip>Mana Spring Totem</tooltip>
+                                        </label>
+                                        <label v-if="activePlayer.mana_spring">
+                                            <input type="checkbox" v-model="activePlayer.imp_mana_spring">
+                                            <wowicon icon="mana_spring" />
+                                            <tooltip>Restorative totems (Improved mana spring)</tooltip>
+                                            <micon class="imp" icon="add" />
+                                        </label>
+                                    </template>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.moonkin_aura">
+                                        <wowicon icon="moonkin_aura" />
+                                        <tooltip>Moonkin aura</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.atiesh_mage">
+                                        <wowicon icon="atiesh" />
+                                        <wowicon class="addon" icon="mage" />
+                                        <tooltip>Atiesh aura from a mage in your party.<br>You do not have to select this if this mage has Atiesh equipped.</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.atiesh_warlock">
+                                        <wowicon icon="atiesh" />
+                                        <wowicon class="addon" icon="warlock" />
+                                        <tooltip>Atiesh aura from a warlock in your party</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.dmf_dmg">
+                                        <wowicon icon="dmf" />
+                                        <tooltip>Sayge's Dark Fortune of Damage</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.songflower">
+                                        <wowicon icon="songflower" />
+                                        <tooltip>Songflower</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.rallying_cry">
+                                        <wowicon icon="rallying_cry" />
+                                        <tooltip>Rallying Cry of the Dragonslayer</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.warchiefs_blessing">
+                                        <wowicon icon="warchiefs_blessing" />
+                                        <tooltip>Warchief's Blessing</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.spirit_of_zandalar">
+                                        <wowicon icon="spirit_of_zandalar" />
+                                        <tooltip>Spirit of Zandalar</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.infallible_mind">
+                                        <wowicon icon="infallible_mind" />
+                                        <tooltip>Infallible Mind</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.elixir_greater_firepower" @click="playerConfigExclusive($event, 'elixir_greater_firepower', 'elixir_firepower')">
+                                        <wowicon icon="elixir_greater_firepower" />
+                                        <tooltip>Elixir of Greater Firepower</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.elixir_firepower" @click="playerConfigExclusive($event, 'elixir_firepower', 'elixir_greater_firepower')">
+                                        <wowicon icon="elixir_firepower" />
+                                        <tooltip>Elixir of Firepower</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.elixir_greater_arcane" @click="playerConfigExclusive($event, 'elixir_greater_arcane', 'elixir_arcane')">
+                                        <wowicon icon="elixir_greater_arcane" />
+                                        <tooltip>Greater Arcane Elixir</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.elixir_arcane" @click="playerConfigExclusive($event, 'elixir_arcane', 'elixir_greater_arcane')">
+                                        <wowicon icon="elixir_arcane" />
+                                        <tooltip>Arcane Elixir</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.elixir_frost_power">
+                                        <wowicon icon="elixir_frost_power" />
+                                        <tooltip>Elixir of Frost Power</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.flask" :value="common.flasks.SUPREME_POWER" @click="playerRadioToggle(activePlayer.flask, 'flask')">
+                                        <wowicon icon="flask_supreme_power" />
+                                        <tooltip>Flask of Supreme Power</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.flask" :value="common.flasks.DISTILLED_WISDOM" @click="playerRadioToggle(activePlayer.flask, 'flask')">
+                                        <wowicon icon="flask_distilled_wisdom" />
+                                        <tooltip>Flask of Distilled Wisdom</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.weapon_oil" :value="common.weapon_oils.BLESSED_WIZARD" @click="playerRadioToggle(activePlayer.weapon_oil, 'weapon_oil')">
+                                        <wowicon icon="weapon_oil_blessed_wizard" />
+                                        <tooltip>Blessed Wizard Oil</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.weapon_oil" :value="common.weapon_oils.BRILLIANT_WIZARD" @click="playerRadioToggle(activePlayer.weapon_oil, 'weapon_oil')">
+                                        <wowicon icon="weapon_oil_brilliant_wizard" />
+                                        <tooltip>Brilliant Wizard Oil</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.weapon_oil" :value="common.weapon_oils.WIZARD" @click="playerRadioToggle(activePlayer.weapon_oil, 'weapon_oil')">
+                                        <wowicon icon="weapon_oil_wizard" />
+                                        <tooltip>Wizard Oil</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.weapon_oil" :value="common.weapon_oils.BRILLIANT_MANA" @click="playerRadioToggle(activePlayer.weapon_oil, 'weapon_oil')">
+                                        <wowicon icon="weapon_oil_brilliant_mana" />
+                                        <tooltip>Brilliant Mana Oil</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.food" :value="common.foods.RUNN_TUM" @click="playerRadioToggle(activePlayer.food, 'food')">
+                                        <wowicon icon="food_runn_tum" />
+                                        <tooltip>Runn Tum Tuber Surprise</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.food" :value="common.foods.NIGHTFIN" @click="playerRadioToggle(activePlayer.food, 'food')">
+                                        <wowicon icon="food_nightfin" />
+                                        <tooltip>Nightfin Soup</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="radio" v-model="activePlayer.food" :value="common.foods.WELL_FED" @click="playerRadioToggle(activePlayer.food, 'food')">
+                                        <wowicon icon="food_well_fed" />
+                                        <tooltip>Well Fed</tooltip>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-title">Bonus stats</div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Spell power</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.sp">
+                                </div>
+                                <div class="form-item">
+                                    <label>Crit %</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.crit">
+                                </div>
+                                <div class="form-item">
+                                    <label>Hit %</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.hit">
+                                </div>
+                            </div>
+                            <div class="form-cols">
+                                <div class="form-item">
+                                    <label>Int</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.int">
+                                </div>
+                                <div class="form-item">
+                                    <label>Spi</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.spi">
+                                </div>
+                                <div class="form-item">
+                                    <label>Mp5</label>
+                                    <input type="text" v-model.number="activePlayer.bonus_stats.mp5">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-box settings">
+                        <div class="title">Sim config</div>
+                        <div>
+                            <div class="form-item">
+                                <label>Iterations</label>
+                                <input type="text" v-model.number="settings.iterations">
+                            </div>
+                            <div class="form-item">
+                                <label>Threads</label>
+                                <input type="text" v-model.number="settings.threads">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loadout" v-if="activeTab == 'loadout' && activePlayer">
+                    <div class="overview">
+                        <div class="copy">
+                            <select-simple
+                                v-model="copyLoadoutPlayer"
+                                :options="otherPlayerOptions"
+                                @input="copyLoadout"
+                                placeholder="Copy gear from..."
+                                :empty-option="false"
+                             />
+                        </div>
+                        <div class="paperdoll">
+                            <div :class="pos" v-for="pos in ['left', 'right', 'bottom']">
+                                <div class="paperslot" :class="css(slot)" v-for="slot in paperdollSlots(pos)">
+                                    <div
+                                        class="paperv paperitem"
+                                        :class="{active: activeSlot == slot && activeGearType == 'gear'}"
+                                        @click="paperdollClick(slot)"
+                                    >
+                                        <a
+                                            v-if="activePlayer.loadout[slot].item_id"
+                                            :href="gearUrl(activePlayer, slot)"
+                                            data-wh-icon-size="large"
+                                            @click.prevent
+                                        ></a>
+                                    </div>
+                                    <div class="papers">
+                                        <div
+                                            class="paperv paperenchant"
+                                            :class="{active: activeSlot == slot && activeGearType == 'enchant'}"
+                                            v-if="items.enchants.hasOwnProperty(loadoutSlotToItemSlot(slot))"
+                                            @click="paperdollClick(slot, 'enchant')"
+                                        >
+                                            <a
+                                                v-if="activePlayer.loadout[slot].enchant_id"
+                                                :href="spellUrl(activePlayer.loadout[slot].enchant_id)"
+                                                data-wh-icon-size="large"
+                                                @click.prevent
+                                            ></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stats">
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        <td>Spell power</td>
+                                        <td>
+                                            <span>
+                                                {{ playerStats.sp }}
+                                                <tooltip position="left"><spell-power :value="playerStats" /></tooltip>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Crit</td>
+                                        <td>{{ playerStats.crit.toFixed(2) }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Hit</td>
+                                        <td>{{ playerStats.hit.toFixed() }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Mana</td>
+                                        <td>{{ playerStats.mana }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Intellect</td>
+                                        <td>{{ playerStats.int }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Spirit</td>
+                                        <td>{{ playerStats.spi }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Mp5</td>
+                                        <td>{{ playerStats.mp5 }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="itemlist" v-if="activeSlot && activeGearType">
+                        <div class="search">
+                            <input type="text" class="search-q" v-model="itemSearch" ref="itemSearchInput" placeholder="Search..." autofocus>
+                        </div>
+                        <div class="items">
+                            <table v-if="itemList.list">
+                                <thead>
+                                    <tr>
+                                        <th class="title">
+                                            <sort-link v-model="itemSorting" name="title">Name</sort-link>
+                                        </th>
+                                        <th v-if="itemList.type != 'enchant'">
+                                            <sort-link v-model="itemSorting" name="ilvl" order="desc">ilvl</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="sp" order="desc">SP</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="crit" order="desc">Crit</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="hit" order="desc">Hit</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="int" order="desc">Int</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="spi" order="desc">Spi</sort-link>
+                                        </th>
+                                        <th>
+                                            <sort-link v-model="itemSorting" name="mp5" order="desc">Mp5</sort-link>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        :class="{active: itemList.type == 'enchant' ? activePlayer.loadout[activeSlot].enchant_id == item.id : activePlayer.loadout[activeSlot].item_id == item.id}"
+                                        v-for="item in itemList.list"
+                                        :key="item.id"
+                                        @click="itemClick(item)"
+                                    >
+                                        <td class="title">
+                                            <a :href="itemList.type == 'enchant' ? spellUrl(item.id) : itemUrl(item.id)" data-whtticon="false" target="_blank" @click.prevent>
+                                                {{ item.title }}
+                                            </a>
+                                        </td>
+                                        <td v-if="itemList.type != 'enchant'">{{ item.ilvl }}</td>
+                                        <td><spell-power :value="item" /></td>
+                                        <td>{{ _.get(item, "crit", "") }}</td>
+                                        <td>{{ _.get(item, "hit", "") }}</td>
+                                        <td>{{ _.get(item, "int", "") }}</td>
+                                        <td>{{ _.get(item, "spi", "") }}</td>
+                                        <td>{{ _.get(item, "mp5", "") }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="empty" v-else>
+                                No results
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <template v-if="isRunning">
-            <div>Progress: {{ (simProgress.progress * 100).toFixed() }}% ({{ simProgress.dps.toFixed(2) }} dps)</div>
-        </template>
+        <div class="result-backdrop" @click="closeResult" v-if="resultOpen"></div>
+        <div id="result" :class="{active: resultOpen}">
+            <div class="result-content">
+                <template v-if="result">
+                    <div class="tabs">
+                        <div class="tab" :class="{active: activeResultTab == 'overview'}" @click="activeResultTab = 'overview'">
+                            Overview
+                        </div>
+                        <template v-if="result.iterations">
 
-        <template v-if="result">
-            <div v-if="result.time" style="margin: 0 0 10px;">Completed {{ result.iterations }} in {{ result.time.toFixed(2) }}s</div>
-            <template v-if="result.iterations">
-                <div><b>Total dps: {{ result.avg_dps.toFixed(2) }} ({{ result.min_dps.toFixed() }} - {{ result.max_dps.toFixed() }})</b></div>
-                <div v-for="(player, index) in result.players">
-                    <div>Player {{ index+1 }} dps: {{ player.dps.toFixed(2) }}</div>
+                        </template>
+                        <template v-else>
+                            <div class="tab" :class="{active: activeResultTab == 'log'}" @click="activeResultTab = 'log'">
+                                Combat log
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="overview" v-if="activeResultTab == 'overview'">
+
+                    </div>
+
+                    <template v-if="result.iterations">
+
+                    </template>
+                    <template v-else>
+                        <div class="combat-log" v-if="activeResultTab == 'log'">
+                            <div class="search">
+                                <div class="search-player">
+                                    <select-simple v-model="filterPlayer" :options="filterPlayerOptions" empty-option="All players" />
+                                </div>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Mana</th>
+                                        <th>Unit</th>
+                                        <th>Type</th>
+                                        <th>Text</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="log in filteredLog" :class="['log-type-'+css(log.log_type)]">
+                                        <td>{{ formatTime(log.t) }}</td>
+                                        <td>{{ log.mana.toFixed() }} ({{ log.mana_percent.toFixed() }}%)</td>
+                                        <td>{{ log.unit_name }}</td>
+                                        <td>{{ formatLogType(log.log_type) }}</td>
+                                        <td class="text" v-html="formatLogText(log)"></td>
+                                        <td>
+                                            <span v-if="log.dmg" class="format-dmg" :class="['spell-result-'+css(log.spell_result)]">
+                                                {{ log.dmg.toFixed() }}
+                                            </span>
+                                            <span v-if="log.resist">
+                                                (-{{ log.resist.toFixed() }})
+                                            </span>
+                                            <span v-if="log.spell_result == 'Miss'">
+                                                Miss
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+
+        <spotlight ref="raidEdit" class="small">
+            <div class="default raid-edit">
+                <div class="form-item">
+                    <label>Name</label>
+                    <input type="text" v-model="raidModel.name" @keydown.enter="updateRaid">
                 </div>
-            </template>
-            <template v-else>
-                <div><b>Total: {{ result.dps.toFixed(2) }} dps ({{ result.dmg }} dmg)</b></div>
-                <div v-for="(player, index) in result.players">
-                    <div>Player {{ index+1 }}: {{ player.dps.toFixed(2) }} dps ({{ player.dmg }} dmg)</div>
+                <div class="form-item">
+                    <label>Faction</label>
+                    <select-simple v-model="raidModel.faction" :options="factionOptions" :empty-option="false" />
                 </div>
-                <div class="combat-log">
-                    <span><label><input type="checkbox" v-model="logTypes" value="CastStart"> Cast start</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="CastSuccess"> Cast success</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="SpellImpact"> Spell impact</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="AuraGain"> Aura gain</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="AuraExpire"> Aura expire</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="CooldownGain"> Cooldown gain</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="CooldownExpire"> Cooldown expire</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="Mana"> Mana gain/loss</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="Wait"> Wait</label></span>&nbsp;&nbsp;&nbsp;
-                    <span><label><input type="checkbox" v-model="logTypes" value="Debug"> Debug</label></span>&nbsp;&nbsp;&nbsp;
-                    <br><br>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Mana</th>
-                                <th>Unit</th>
-                                <th>Type</th>
-                                <th>Text</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="log in filteredLog" :class="['log-type-'+css(log.log_type)]">
-                                <td>{{ formatTime(log.t) }}</td>
-                                <td>{{ log.mana.toFixed() }} ({{ log.mana_percent.toFixed() }}%)</td>
-                                <td>{{ log.unit_name }}</td>
-                                <td>{{ formatLogType(log.log_type) }}</td>
-                                <td class="text" v-html="formatLogText(log)"></td>
-                                <td>
-                                    <span v-if="log.dmg" class="format-dmg" :class="['spell-result-'+css(log.spell_result)]">
-                                        {{ log.dmg.toFixed() }}
-                                    </span>
-                                    <span v-if="log.resist">
-                                        (-{{ log.resist.toFixed() }})
-                                    </span>
-                                    <span v-if="log.spell_result == 'Miss'">
-                                        Miss
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="updateRaid">Save raid</button>
                 </div>
-            </template>
-        </template>
+            </div>
+        </spotlight>
+
+        <spotlight ref="playerEdit" class="small">
+            <div class="default player-edit">
+                <div class="form-item">
+                    <label>Name</label>
+                    <input type="text" v-model="playerModel.name" @keydown.enter="updatePlayer">
+                </div>
+                <div class="form-item">
+                    <label>Race</label>
+                    <select-simple v-model="playerModel.race" :options="raceOptions" :empty-option="false" />
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="updatePlayer">Save player</button>
+                </div>
+            </div>
+        </spotlight>
+
+        <spotlight ref="confirmSpotlight" class="small confirm">
+            <div class="default">
+                <div class="confirm-text">{{ confirmation.options.text }}</div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="confirmationContinue">{{ confirmation.options.confirm }}</button>
+                    <button class="btn btn-secondary" @click="confirmationCancel">{{ confirmation.options.abort }}</button>
+                </div>
+            </div>
+        </spotlight>
     </div>
 </template>

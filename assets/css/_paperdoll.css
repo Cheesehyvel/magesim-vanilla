@@ -1,0 +1,152 @@
+.paperdoll {
+    @util clearfix;
+
+    > div {
+        position: relative;
+    }
+
+    .left {
+        float: left;
+
+        .paperslot {
+            .papers {
+                left: 100%;
+                margin-left: 3px;
+            }
+        }
+    }
+
+    .right {
+        float: right;
+
+        .paperslot {
+            .papers {
+                right: 100%;
+                margin-right: 3px;
+            }
+        }
+    }
+
+    .bottom {
+        clear: both;
+        padding-top: 10px;
+        text-align: center;
+
+        .paperslot {
+            display: inline-block;
+            margin-bottom: 0;
+
+            &:nth-child(2) {
+                margin: 0 20px;
+            }
+
+            .papers {
+                right: 100%;
+                margin-right: 3px;
+            }
+        }
+    }
+
+    .paperslot {
+        position: relative;
+        margin-bottom: 3px;
+
+        .paperv {
+            position: relative;
+            background-size: cover;
+            background-repeat: no-repeat;
+            cursor: pointer;
+
+            &.active {
+                border-color: var(--color-primary) !important;
+            }
+
+            a {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: block;
+                width: auto;
+                height: auto;
+
+                span:nth-child(2) {
+                    display: none;
+                }
+
+                * {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    display: block;
+                    width: auto;
+                    height: auto;
+                }
+
+                ins {
+                    background-size: cover;
+                    background-repeat: no-repeat;
+                }
+
+                del {
+                    display: none;
+                }
+            }
+        }
+
+        .paperitem {
+            width: 50px;
+            height: 50px;
+            border: 2px solid var(--color-stroke-light);
+            border-radius: 2px;
+
+            @media (max-height: 850px) {
+                width: 44px;
+                height: 44px;
+            }
+        }
+
+        .papers {
+            @util clearfix;
+            position: absolute;
+            top: 2px;
+            white-space: nowrap;
+
+            .paperv {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 1px solid var(--color-stroke-light);
+
+                &:nth-child(n+2) {
+                    margin-left: 2px;
+                }
+            }
+        }
+
+        .paperenchant {
+            background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_enchant.jpg");
+        }
+
+        &.head .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_head.jpg"); }
+        &.neck .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_neck.jpg"); }
+        &.shoulder .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_shoulder.jpg"); }
+        &.chest .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_chest.jpg"); }
+        &.back .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_chest.jpg"); }
+        &.wrist .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_wrists.jpg"); }
+        &.hands .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_hands.jpg"); }
+        &.waist .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_waist.jpg"); }
+        &.legs .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_legs.jpg"); }
+        &.feet .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_feet.jpg"); }
+        &.finger-1 .paperitem,
+        &.finger-2 .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_finger.jpg"); }
+        &.trinket-1 .paperitem,
+        &.trinket-2 .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_trinket.jpg"); }
+        &.main-hand .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_mainhand.jpg"); }
+        &.off-hand .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_offhand.jpg"); }
+        &.ranged .paperitem { background-image: url("https://wow.zamimg.com/images/wow/icons/large/inventoryslot_ranged.jpg"); }
+    }
+}

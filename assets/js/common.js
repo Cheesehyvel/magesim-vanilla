@@ -18,9 +18,9 @@ export default {
     },
     foods: {
         NONE: 0,
-        SPIRIT12: 17222,
-        MP8: 13931,
-        INT10: 18254,
+        WELL_FED: 17222,
+        NIGHTFIN: 13931,
+        RUNN_TUM: 18254,
     },
     flasks: {
         NONE: 0,

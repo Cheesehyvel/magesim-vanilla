@@ -932,7 +932,7 @@ var gear = {
 };
 
 var enchants = {
-    weapon: [
+    main_hand: [
         { id: 22749, enchantment_id: 2504, title: "Spell Power", sp: 30 },
         { id: 21931, enchantment_id: 2443, title: "Winter's Might", sp_frost: 7 },
         { id: 23804, enchantment_id: 2568, title: "Mighty Intellect", int: 22 },

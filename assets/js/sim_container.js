@@ -48,7 +48,7 @@ class SimContainer {
                             sum.min_dps = data.result.min_dps;
                         if (data.result.max_dps > sum.max_dps)
                             sum.max_dps = data.result.max_dps;
-                        sum.avg_dps = (sum.avg_dps * sum.iterations + data.result.avg_dps * data.result.iterations) / (sum.iterations + data.result.iterations);
+                        sum.dps = (sum.dps * sum.iterations + data.result.dps * data.result.iterations) / (sum.iterations + data.result.iterations);
 
                         for (let j=0; j<sum.players.length; j++) {
                             sum.players[j].dps = (sum.players[j].dps * sum.iterations + data.result.players[j].dps * data.result.iterations) / (sum.iterations + data.result.iterations);
@@ -57,7 +57,7 @@ class SimContainer {
                         sum.iterations+= data.result.iterations;
                     }
 
-                    if (onProgress && i%4 == 0)
+                    if (onProgress)
                         onProgress(sum);
 
                     if (this.iterations == 1 || sum.iterations == this.iterations) {
