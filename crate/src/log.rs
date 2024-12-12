@@ -25,7 +25,9 @@ pub struct LogEntry {
     pub t: f64,
     pub mana: f64,
     pub mana_percent: f64,
-    pub dmg: f64,
-    pub resist: f64,
+    pub dps: f64,
+    pub total_dps: f64,
+    pub value: f64,
+    pub value2: f64,
     pub spell_result: SpellResult,
 }

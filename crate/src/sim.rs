@@ -295,7 +295,7 @@ impl Sim {
 
             EventType::Wait => {
                 if !event.text.is_empty() {
-                    self.log(log::LogType::Wait, event.text.clone(), event.unit_id);
+                    self.log_value(log::LogType::Wait, event.text.clone(), event.unit_id, event.t);
                 }
 
                 let mut ev = Event::new(EventType::Idle);
@@ -432,7 +432,7 @@ impl Sim {
         if event.target_id != 0 {
             log_text.push_str(&format!(" on t[{}]", self.target(event.target_id).name));
         }
-        self.log(log::LogType::CastStart, log_text, event.unit_id);
+        self.log_value(log::LogType::CastStart, log_text, event.unit_id, spell.this_cast_time);
 
         // Set unit gcd
         if event.is_main_event {
@@ -551,7 +551,7 @@ impl Sim {
 
         self.units.get_mut(&event.unit_id).unwrap().mod_mana(event.mana, self.t);
 
-        self.log(log::LogType::Mana, format!("Mana m[{}]", event.mana), event.unit_id);
+        self.log_value(log::LogType::Mana, format!("Mana"), event.unit_id, event.mana);
     }
 
     fn on_mana_regen(&mut self, event: &mut Event) {
@@ -560,7 +560,7 @@ impl Sim {
 
         if mana > 0.0 {
             unit.mod_mana(mana, self.t);
-            self.log(log::LogType::Mana, format!("Mana regen m[{}]", mana), event.unit_id);
+            self.log_value(log::LogType::Mana, format!("Mana regen"), event.unit_id, mana);
         }
 
         self.push_mana_regen(event.unit_id);
@@ -978,8 +978,26 @@ impl Sim {
             t: self.t,
             mana: self.unit(unit_id).current_mana(),
             mana_percent: self.unit(unit_id).mana_percent(),
-            dmg: 0.0,
-            resist: 0.0,
+            dps: self.unit_total_dmg(unit_id) as f64 / self.t,
+            total_dps: self.total_dmg() as f64 / self.t,
+            value: 0.0,
+            value2: 0.0,
+            spell_result: spell::SpellResult::None,
+        });
+    }
+
+    pub fn log_value(&mut self, log_type: log::LogType, text: String, unit_id: i32, value: f64) {
+        self.log_push(log::LogEntry {
+            log_type,
+            text,
+            unit_name: self.unit(unit_id).name(),
+            t: self.t,
+            mana: self.unit(unit_id).current_mana(),
+            mana_percent: self.unit(unit_id).mana_percent(),
+            dps: self.unit_total_dmg(unit_id) as f64 / self.t,
+            total_dps: self.total_dmg() as f64 / self.t,
+            value: value,
+            value2: 0.0,
             spell_result: spell::SpellResult::None,
         });
     }
@@ -992,8 +1010,10 @@ impl Sim {
             t: self.t,
             mana: self.unit(unit_id).current_mana(),
             mana_percent: self.unit(unit_id).mana_percent(),
-            dmg: instance.dmg,
-            resist: instance.resist,
+            dps: self.unit_total_dmg(unit_id) as f64 / self.t,
+            total_dps: self.total_dmg() as f64 / self.t,
+            value: instance.dmg,
+            value2: instance.resist,
             spell_result: instance.result,
         });
     }

@@ -19,7 +19,7 @@ const css = (str) => {
     return _.kebabCase(str);
 };
 const raceFaction = (race) => {
-    return ["Gnome", "Human"].indexOf(race) == -1 ? "Alliance" : "Horde";
+    return ["Gnome", "Human"].indexOf(race) != -1 ? "Alliance" : "Horde";
 };
 const itemUrl = (id) => {
     if (typeof(id) == "object")
@@ -88,7 +88,7 @@ const addStats = (a, b) => {
  * Talents
  */
 const baseTalents = () => {
-    return new Array(50).fill(0);
+    return new Array(49).fill(0);
 };
 const parseTalents = (url) => {
     let m;
@@ -203,13 +203,34 @@ const baseLoadout = () => {
 };
 const loadoutStats = (loadout) => {
     let stats = common.stats();
+    let sets = {};
+
     for (let slot in loadout) {
         let item = getItem(loadout[slot].item_id);
         if (item) {
             stats = addStats(stats, item);
+
             let enchant = getEnchant(loadout[slot].enchant_id);
             if (enchant)
                 stats = addStats(stats, enchant);
+
+            if (item.set) {
+                if (!sets.hasOwnProperty(item.set)) {
+                    let set = _.find(items.sets, {id: item.set});
+                    sets[item.set] = {
+                        set: set,
+                        n: 1,
+                    };
+                }
+                else {
+                    sets[item.set].n++;
+                    if (sets[item.set].set) {
+                        let setbonus = _.get(sets[item.set].set, "set"+sets[item.set].n);
+                        if (setbonus)
+                            stats = addStats(stats, setbonus);
+                    }
+                }
+            }
         }
     }
     return stats;
@@ -233,6 +254,7 @@ const defaultConfig = () => {
         pre_cast: false,
         curse_of_elements: false,
         curse_of_shadows: false,
+        _sync_buffs: false,
     };
 };
 
@@ -486,6 +508,11 @@ const simStats = (player) => {
 };
 const simConfig = () => {
     let config = _.cloneDeep(activeRaid.value.config);
+    for (let key in config) {
+        if (key.substr(0, 1) == "_")
+            delete config[key];
+    }
+
     config.players = [];
     for (let p of activeRaid.value.players) {
         let player = simDefaultPlayer();
@@ -494,6 +521,7 @@ const simConfig = () => {
         player.stats = simStats(p);
         config.players.push(player);
     }
+
     return config;
 };
 const runSingle = () => {
@@ -581,9 +609,7 @@ const filteredLog = computed(() => {
  * Confirmation
  */
 const confirmSpotlight = ref();
-const confirmation = reactive({
-    options: {},
-});
+const confirmation = ref({});
 const confirm = (options) => {
     let defaults = {
         text: "Are you sure?",
@@ -591,19 +617,31 @@ const confirm = (options) => {
         abort: "No",
         continue: () => {},
     };
-    confirmation.options = _.merge(defaults, options);
+    confirmation.value = _.merge(defaults, options);
     confirmSpotlight.value.open();
 
     return new Promise((resolve, reject) => {
-        confirmation.options.continue = resolve;
+        confirmation.value.continue = resolve;
     });
 };
 const confirmationContinue = () => {
-    confirmation.options.continue();
+    confirmation.value.continue();
     confirmSpotlight.value.close();
 };
 const confirmationCancel = () => {
     confirmSpotlight.value.close();
+};
+
+const alertSpotlight = ref();
+const alerter = reactive({
+    text: "",
+});
+const alert = (text) => {
+    alerter.text = text;
+    alertSpotlight.value.open();
+};
+const alertClose = () => {
+    alertSpotlight.value.close();
 };
 
 /**
@@ -675,6 +713,18 @@ const selectPlayer = (id) => {
 };
 const playerEdit = ref();
 const playerModel = ref(defaultPlayer());
+const playerModelCopy = ref(null);
+const playerCopyOptions = computed(() => {
+    if (!activeRaid.value)
+        return [];
+    let options = [];
+    for (let player of activeRaid.value.players) {
+        if (player.id == playerModel.value.id)
+            continue;
+        options.push({value: player.id, title: player.name});
+    }
+    return options;
+});
 const createPlayerOpen = () => {
     if (!activeRaid.value)
         return;
@@ -691,7 +741,22 @@ const updatePlayer = () => {
     playerEdit.value.close();
     if (!activeRaid.value)
         return;
-    let player = _.cloneDeep(playerModel.value);
+
+    let player = null;
+    if (playerModelCopy.value) {
+        let copy = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
+        if (copy) {
+            player = _.cloneDeep(copy);
+            player.id = playerModel.value.id;
+            player.name = playerModel.value.name;
+            player.race = playerModel.value.race;
+        }
+        playerModelCopy.value = null;
+    }
+
+    if (!player)
+        player = _.cloneDeep(playerModel.value);
+
     let index = activeRaid.value.players.findIndex(r => r.id == player.id);
     if (index != -1)
         activeRaid.value.players[index] = player;
@@ -955,6 +1020,37 @@ const openResult = () => {
     resultOpen.value = true;
 };
 
+const talentImport = ref("");
+const importTalents = () => {
+    let talents = parseTalents(talentImport.value);
+    if (talents)
+        activePlayer.value.talents = talents;
+    else
+        alert("Could not parse talent URL");
+    talentImport.value = "";
+};
+
+const onSyncBuffs = () => {
+    syncBuffs();
+};
+const syncBuffs = () => {
+    if (!activeRaid.value._sync_buffs)
+        return;
+    let skip = [
+        "id", "name", "race", "stats", "level",
+        "talents", "loadout", "bonus_stats",
+    ];
+    for (let player of activeRaid.value.players) {
+        if (player.id == activePlayer.value.id)
+            continue;
+        for (let key in activePlayer.value) {
+            if (skip.includes(key))
+                continue;
+            player[key] = activePlayer.value[key];
+        }
+    }
+};
+
 /**
  * Watchers
  */
@@ -970,11 +1066,13 @@ watch(() => settings.raid_id, (value) => {
         activeTab.value = "config";
     }
 });
+watch(() => itemSearch.value, refreshTooltips);
 watch(() => activeTab.value, refreshTooltips);
 watch(() => activeGearType.value, refreshTooltips);
 watch(() => activeSlot.value, refreshTooltips);
 watch(() => activePlayer.value, () => {
     playerStats.value = visualStats(activePlayer.value);
+    syncBuffs();
     refreshTooltips();
 }, {deep: true});
 watch(() => result.value, () => {
@@ -1103,6 +1201,9 @@ onMounted(() => {
                     <template v-if="activePlayer">
                         <div class="tab" :class="{active: activeTab == 'loadout'}" @click="activeTab = 'loadout'">
                             Gear
+                        </div>
+                        <div class="tab" :class="{active: activeTab == 'talents'}" @click="activeTab = 'talents'">
+                            Talents
                         </div>
                     </template>
                 </div>
@@ -1264,7 +1365,7 @@ onMounted(() => {
                                         <input type="checkbox" v-model="activePlayer.atiesh_mage">
                                         <wowicon icon="atiesh" />
                                         <wowicon class="addon" icon="mage" />
-                                        <tooltip>Atiesh aura from a mage in your party.<br>You do not have to select this if this mage has Atiesh equipped.</tooltip>
+                                        <tooltip>Atiesh aura from a mage in your party.</tooltip>
                                     </label>
                                     <label>
                                         <input type="checkbox" v-model="activePlayer.atiesh_warlock">
@@ -1374,6 +1475,11 @@ onMounted(() => {
                                     </label>
                                 </div>
                             </div>
+                            <div class="form-item">
+                                <checkbox label="Sync buffs">
+                                    <input type="checkbox" v-model="activeRaid._sync_buffs" @change="onSyncBuffs">
+                                </checkbox>
+                            </div>
                             <div class="form-title">Bonus stats</div>
                             <div class="form-cols">
                                 <div class="form-item">
@@ -1444,6 +1550,7 @@ onMounted(() => {
                                             v-if="activePlayer.loadout[slot].item_id"
                                             :href="gearUrl(activePlayer, slot)"
                                             data-wh-icon-size="large"
+                                            data-whtticon="false"
                                             @click.prevent
                                         ></a>
                                     </div>
@@ -1458,6 +1565,7 @@ onMounted(() => {
                                                 v-if="activePlayer.loadout[slot].enchant_id"
                                                 :href="spellUrl(activePlayer.loadout[slot].enchant_id)"
                                                 data-wh-icon-size="large"
+                                                data-whtticon="false"
                                                 @click.prevent
                                             ></a>
                                         </div>
@@ -1548,7 +1656,13 @@ onMounted(() => {
                                         @click="itemClick(item)"
                                     >
                                         <td class="title">
-                                            <a :href="itemList.type == 'enchant' ? spellUrl(item.id) : itemUrl(item.id)" data-whtticon="false" target="_blank" @click.prevent>
+                                            <a
+                                                :href="itemList.type == 'enchant' ? spellUrl(item.id) : itemUrl(item.id)"
+                                                :class="'quality-'+_.get(item, 'q', itemList.type == 'enchant' ? 'uncommon' : 'epic')"
+                                                data-whtticon="false"
+                                                target="_blank"
+                                                @click.prevent
+                                            >
                                                 {{ item.title }}
                                             </a>
                                         </td>
@@ -1568,6 +1682,13 @@ onMounted(() => {
                         </div>
                     </div>
                 </div>
+
+                <div class="talents" v-if="activeTab == 'talents' && activePlayer">
+                    <div class="import">
+                        <input type="text" placeholder="Paste URL from wowhead to import" v-model="talentImport" @input="importTalents">
+                    </div>
+                    <talent-calculator v-model="activePlayer.talents" />
+                </div>
             </div>
         </div>
 
@@ -1586,11 +1707,52 @@ onMounted(() => {
                             <div class="tab" :class="{active: activeResultTab == 'log'}" @click="activeResultTab = 'log'">
                                 Combat log
                             </div>
+                            <div class="tab" :class="{active: activeResultTab == 'graph'}" @click="activeResultTab = 'graph'">
+                                Graph
+                            </div>
                         </template>
                     </div>
 
                     <div class="overview" v-if="activeResultTab == 'overview'">
+                        <div class="dps-overview" v-if="resultOpen">
+                            <div class="players">
+                                <div class="player" v-for="player in result.players">
+                                    <div class="progress-wrapper">
+                                        <progress-circle :value="player.dps / result.dps" :animate="true" />
+                                        <div class="center">
+                                            <div class="value">
+                                                <animate-number :end="player.dps / result.dps * 100" :decimals="0" />%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="info">
+                                        <div class="name">{{ player.name }}</div>
+                                        <div class="dps">
+                                            <animate-number :end="player.dps" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="total progress-wrapper">
+                                <progress-circle :value="1" :animate="true" />
+                                <div class="center">
+                                    <div class="title">Total dps</div>
+                                    <div class="value">
+                                        <animate-number :end="result.dps" />
+                                    </div>
+                                    <div class="notice" v-if="result.iterations">{{ result.min_dps.toFixed() }} - {{ result.max_dps.toFixed() }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="graph" v-if="activeResultTab == 'graph'">
+                        <div class="search">
+                            <div class="search-player">
+                                <select-simple v-model="filterPlayer" :options="filterPlayerOptions" empty-option="All players" />
+                            </div>
+                        </div>
+                        <combat-chart :result="result" :player="filterPlayer" />
                     </div>
 
                     <template v-if="result.iterations">
@@ -1622,11 +1784,19 @@ onMounted(() => {
                                         <td>{{ formatLogType(log.log_type) }}</td>
                                         <td class="text" v-html="formatLogText(log)"></td>
                                         <td>
-                                            <span v-if="log.dmg" class="format-dmg" :class="['spell-result-'+css(log.spell_result)]">
-                                                {{ log.dmg.toFixed() }}
+                                            <template v-if="log.spell_result == 'Hit' || log.spell_result == 'Crit'">
+                                                <span class="format-dmg" :class="['spell-result-'+css(log.spell_result)]">
+                                                    {{ log.value.toFixed() }}
+                                                </span>
+                                                <span v-if="log.value2">
+                                                    (-{{ log.value2.toFixed() }})
+                                                </span>
+                                            </template>
+                                            <span v-else-if="log.log_type == 'Mana'">
+                                                <span class="format-mana">{{ log.value.toFixed() }}</span>
                                             </span>
-                                            <span v-if="log.resist">
-                                                (-{{ log.resist.toFixed() }})
+                                            <span v-else-if="log.value">
+                                                {{ log.value.toPrecision(2) }}
                                             </span>
                                             <span v-if="log.spell_result == 'Miss'">
                                                 Miss
@@ -1667,6 +1837,10 @@ onMounted(() => {
                     <label>Race</label>
                     <select-simple v-model="playerModel.race" :options="raceOptions" :empty-option="false" />
                 </div>
+                <div class="form-item">
+                    <label>Copy from</label>
+                    <select-simple v-model="playerModelCopy" :options="playerCopyOptions" empty-option="None" />
+                </div>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updatePlayer">Save player</button>
                 </div>
@@ -1675,10 +1849,19 @@ onMounted(() => {
 
         <spotlight ref="confirmSpotlight" class="small confirm">
             <div class="default">
-                <div class="confirm-text">{{ confirmation.options.text }}</div>
+                <div class="confirm-text">{{ confirmation.text }}</div>
                 <div class="buttons">
-                    <button class="btn btn-primary" @click="confirmationContinue">{{ confirmation.options.confirm }}</button>
-                    <button class="btn btn-secondary" @click="confirmationCancel">{{ confirmation.options.abort }}</button>
+                    <button class="btn btn-primary" @click="confirmationContinue">{{ confirmation.confirm }}</button>
+                    <button class="btn btn-secondary" @click="confirmationCancel">{{ confirmation.abort }}</button>
+                </div>
+            </div>
+        </spotlight>
+
+        <spotlight ref="alertSpotlight" class="small alert">
+            <div class="default">
+                <div class="alert-text">{{ alerter.text }}</div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="alertClose">Close</button>
                 </div>
             </div>
         </spotlight>

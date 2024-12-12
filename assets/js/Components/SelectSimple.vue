@@ -40,8 +40,12 @@ const toggleOptions = () => {
     showingOptions.value = !showingOptions.value;
 };
 
+const isEmpty = computed(() => {
+    return props.modelValue === null || props.modelValue === undefined;
+});
+
 const onWindowClick = (e) => {
-    if (e.target && !el.value.contains(e.target))
+    if (e.target && el.value && !el.value.contains(e.target))
         hideOptions();
 };
 
@@ -56,7 +60,7 @@ watch(() => props.modelValue, (value) => {
 </script>
 
 <template>
-    <div class="select-simple" :class="{open: showingOptions}" ref="el">
+    <div class="select-simple" :class="{open: showingOptions, empty: isEmpty}" ref="el">
         <div class="input" @click="toggleOptions">
             <div class="textfield">{{ inputValue }}</div>
             <div class="icon">

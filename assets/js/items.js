@@ -933,7 +933,7 @@ var gear = {
 
 var enchants = {
     main_hand: [
-        { id: 22749, enchantment_id: 2504, title: "Spell Power", sp: 30 },
+        { id: 22749, enchantment_id: 2504, title: "Spell Power", sp: 30, q: "rare" },
         { id: 21931, enchantment_id: 2443, title: "Winter's Might", sp_frost: 7 },
         { id: 23804, enchantment_id: 2568, title: "Mighty Intellect", int: 22 },
         { id: 20036, enchantment_id: 1904, title: "Major Intellect", int: 9, twohand: true },
@@ -943,14 +943,13 @@ var enchants = {
         { id: 13380, enchantment_id: 255, title: "Lesser Spirit", spi: 3, twohand: true },
     ],
     head: [
-        { id: 24164, enchantment_id: 2588, title: "Presence of Sight", sp: 18, hit: 1 },
+        { id: 24164, enchantment_id: 2588, title: "Presence of Sight", sp: 18, hit: 1, q: "rare" },
         { id: 22844, enchantment_id: 2544, title: "Arcanum of Focus", sp: 8 },
         { id: 15404, enchantment_id: 1509, title: "Lesser Arcane Amalgamation", int: 8 },
     ],
     shoulder: [
-        { id: 29467, enchantment_id: 2721, title: "Power of the Scourge", sp: 15, crit: 1 },
-        { id: 24421, enchantment_id: 2605, title: "Zandalar Signet of Mojo", sp: 18 },
-        { id: 446459, enchantment_id: 7325, title: "Atal'ai Signet of Mojo", sp: 9 },
+        { id: 29467, enchantment_id: 2721, title: "Power of the Scourge", sp: 15, crit: 1, q: "epic" },
+        { id: 24421, enchantment_id: 2605, title: "Zandalar Signet of Mojo", sp: 18, q: "rare" },
     ],
     chest: [
         { id: 20025, enchantment_id: 1891, title: "Greater Stats", int: 4, spi: 4 },
@@ -978,7 +977,7 @@ var enchants = {
         { id: 25074, enchantment_id: 2615, title: "Frost Power", sp_frost: 20 },
     ],
     legs: [
-        { id: 24164, enchantment_id: 2588, title: "Presence of Sight", sp: 18, hit: 1 },
+        { id: 24164, enchantment_id: 2588, title: "Presence of Sight", sp: 18, hit: 1, q: "rare" },
         { id: 22844, enchantment_id: 2544, title: "Arcanum of Focus", sp: 8 },
         { id: 15404, enchantment_id: 1509, title: "Lesser Arcane Amalgamation", int: 8 },
     ],

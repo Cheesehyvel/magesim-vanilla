@@ -14,7 +14,7 @@ class SimContainer {
         if (!this.iterations || isNaN(this.iterations))
             throw "Invalid iterations";
 
-        let run_itr = Math.max(100, Math.min(1000, Math.ceil(this.iterations/this.threads)));
+        let run_itr = Math.max(100, Math.min(400, Math.ceil(this.iterations/this.threads)));
         let num_workers = Math.min(this.threads, Math.ceil(this.iterations/run_itr));
 
         for (let total = 0; total < this.iterations; total+= run_itr) {
