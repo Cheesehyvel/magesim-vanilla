@@ -50,6 +50,17 @@ const otherSlot = (slot) => {
     n = n == 1 ? 2 : 1;
     return slot.substr(0, slot.length-1)+n;
 };
+const copyToClipboard = (str) => {
+    var el = document.createElement("textarea");
+    el.value = str;
+    el.style.opacity = 0;
+    el.style.position = "absolute";
+    el.style.top = 0;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy")
+    document.body.removeChild(el);
+};
 
 /**
  * Stats
@@ -251,10 +262,8 @@ const defaultConfig = () => {
         distance: 30,
         reaction_time: 0.3,
         player_delay: 0.1,
-        pre_cast: false,
         curse_of_elements: false,
         curse_of_shadows: false,
-        _sync_buffs: false,
     };
 };
 
@@ -331,6 +340,7 @@ const defaultRaid = (name) => {
         faction: "Horde",
         config: defaultConfig(),
         players: [defaultPlayer()],
+        _sync_buffs: false,
     }
 };
 const loadRaids = () => {
@@ -344,7 +354,10 @@ const loadRaids = () => {
     else {
         // Convert old data
         for (let raid of raids) {
+            delete raid.config.pre_cast;
+            delete raid.config._sync_buffs;
             for (let player of raid.players) {
+                player.talents.splice(49);
                 if (player.hasOwnProperty("extra_stats")) {
                     player.bonus_stats = player.extra_stats;
                     delete player.extra_stats;
@@ -579,6 +592,7 @@ const formatLogText = (log) => {
     text = formatter(text, "c", "cooldown");
     text = formatter(text, "m", "mana");
     text = text.replace("->", "&#8594;");
+    text = text.replace("!=", "&ne;");
     // Remove unknown formatters
     text = text.replace(/[a-z0-9]+\[([^\]]+)\]/g, "$1");
     return text;
@@ -645,7 +659,7 @@ const alertClose = () => {
 };
 
 /**
- * Front end variables
+ * Raid UI
  */
 const raidSelectOpen = ref(false);
 const confirmDeleteRaid = (raid) => {
@@ -687,11 +701,28 @@ const updateRaid = () => {
         raids.value[index] = raid;
     }
     else {
-        raids.value.unshift(raid);
+        raids.value.push(raid);
         settings.raid_id = raid.id;
     }
 };
+const factionOptions = [
+    { value: "Alliance", title: "Alliance" },
+    { value: "Horde", title: "Horde" },
+];
 
+/**
+ * Player UI
+ */
+const playerStats = ref(common.stats());
+const playerEdit = ref();
+const playerImport = ref();
+const playerModel = ref(defaultPlayer());
+const playerModelCopy = ref(null);
+const playerImportConfig = ref(true);
+const playerImportLoadout = ref(true);
+const selectPlayer = (id) => {
+    activePlayerId.value = id;
+};
 const confirmDeletePlayer = (player) => {
     raidSelectOpen.value = false;
     confirm({
@@ -708,12 +739,6 @@ const confirmDeletePlayer = (player) => {
         }
     });
 };
-const selectPlayer = (id) => {
-    activePlayerId.value = id;
-};
-const playerEdit = ref();
-const playerModel = ref(defaultPlayer());
-const playerModelCopy = ref(null);
 const playerCopyOptions = computed(() => {
     if (!activeRaid.value)
         return [];
@@ -738,20 +763,44 @@ const editPlayerOpen = (player) => {
     playerEdit.value.open(true);
 };
 const updatePlayer = () => {
+    let isImport = playerImport.value.isOpen;
     playerEdit.value.close();
+    playerImport.value.close();
     if (!activeRaid.value)
         return;
 
     let player = null;
-    if (playerModelCopy.value) {
-        let copy = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
-        if (copy) {
-            player = _.cloneDeep(copy);
-            player.id = playerModel.value.id;
-            player.name = playerModel.value.name;
-            player.race = playerModel.value.race;
+    if (isImport) {
+        // Overwrite player
+        if (playerModelCopy.value) {
+            let copy = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
+            if (copy) {
+                if (playerImportConfig.value) {
+                    player = _.cloneDeep(playerModel.value);
+                    player.id = copy.id;
+                    player.name = copy.name;
+                    if (!playerImportLoadout.value)
+                        player.loadout = _.cloneDeep(copy.loadout);
+                }
+                else {
+                    player = _.cloneDeep(copy);
+                    if (playerImportLoadout.value)
+                        player.loadout = _.cloneDeep(playerModel.value.loadout);
+                }
+            }
         }
-        playerModelCopy.value = null;
+    }
+    else {
+        if (playerModelCopy.value) {
+            let copy = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
+            if (copy) {
+                player = _.cloneDeep(copy);
+                player.id = playerModel.value.id;
+                player.name = playerModel.value.name;
+                player.race = playerModel.value.race;
+            }
+            playerModelCopy.value = null;
+        }
     }
 
     if (!player)
@@ -762,31 +811,11 @@ const updatePlayer = () => {
         activeRaid.value.players[index] = player;
     else
         activeRaid.value.players.push(player);
+
+    syncBuffs();
+
+    activePlayerId.value = player.id;
 };
-const playerStats = ref(common.stats());
-
-const activeTab = ref("config");
-const activeSlot = ref("head");
-const activeGearType = ref("gear");
-const activeResultTab = ref("overview");
-
-const factionOptions = [
-    { value: "Alliance", title: "Alliance" },
-    { value: "Horde", title: "Horde" },
-];
-const raceOptions = computed(() => {
-    if (activeRaid.value && activeRaid.value.faction == "Alliance") {
-        return [
-            { value: "Gnome", title: "Gnome" },
-            { value: "Human", title: "Human" },
-        ];
-    }
-
-    return [
-        { value: "Troll", title: "Troll" },
-        { value: "Undead", title: "Undead" },
-    ];
-});
 const specFromTalents = (talents) => {
     let count = [0, 0, 0];
     for (let i = 0; i < talents.length; i++) {
@@ -809,6 +838,31 @@ const specFromTalents = (talents) => {
 const playerSpecIcon = (player) => {
     return "spec_"+specFromTalents(player.talents);
 };
+const raceOptions = computed(() => {
+    if (activeRaid.value && activeRaid.value.faction == "Alliance") {
+        return [
+            { value: "Gnome", title: "Gnome" },
+            { value: "Human", title: "Human" },
+        ];
+    }
+
+    return [
+        { value: "Troll", title: "Troll" },
+        { value: "Undead", title: "Undead" },
+    ];
+});
+
+/**
+ * Main panel UI
+ */
+const activeTab = ref("config");
+const activeSlot = ref("head");
+const activeGearType = ref("gear");
+const activeResultTab = ref("overview");
+
+/**
+ * Config UI
+ */
 const otherPlayerOptions = computed(() => {
     if (!activeRaid.value)
         return {};
@@ -820,17 +874,6 @@ const otherPlayerOptions = computed(() => {
     }
     return options;
 });
-const copyLoadoutPlayer = ref(null);
-const copyLoadout = (playerId) => {
-    if (!activePlayer.value)
-        return;
-    let player = activeRaid.value.players.find(p => p.id == playerId);
-    if (player && player.id != activePlayerId.value) {
-        activePlayer.value.loadout = _.cloneDeep(player.loadout);
-        refreshTooltips();
-    }
-    nextTick(() => { copyLoadoutPlayer.value = null });
-};
 const playerConfigExclusive = (e, key, others) => {
     if (!_.isArray(others))
         others = [others];
@@ -847,7 +890,40 @@ const playerRadioToggle = (val, key) => {
     if (val == activePlayer.value[key])
         activePlayer.value[key] = 0;
 };
+const talentImport = ref("");
+const importTalents = () => {
+    let talents = parseTalents(talentImport.value);
+    if (talents)
+        activePlayer.value.talents = talents;
+    else
+        alert("Could not parse talent URL");
+    talentImport.value = "";
+};
 
+const onSyncBuffs = () => {
+    syncBuffs();
+};
+const syncBuffs = () => {
+    if (!activeRaid.value._sync_buffs)
+        return;
+    let skip = [
+        "id", "name", "race", "stats", "level",
+        "talents", "loadout", "bonus_stats",
+    ];
+    for (let player of activeRaid.value.players) {
+        if (player.id == activePlayer.value.id)
+            continue;
+        for (let key in activePlayer.value) {
+            if (skip.includes(key))
+                continue;
+            player[key] = activePlayer.value[key];
+        }
+    }
+};
+
+/**
+ * Item UI
+ */
 const paperdollSlots = (pos) => {
     if (pos == "left") {
         return [
@@ -1003,6 +1079,17 @@ const itemClick = (item) => {
 
     refreshTooltips();
 };
+const copyLoadoutPlayer = ref(null);
+const copyLoadout = (playerId) => {
+    if (!activePlayer.value)
+        return;
+    let player = activeRaid.value.players.find(p => p.id == playerId);
+    if (player && player.id != activePlayerId.value) {
+        activePlayer.value.loadout = _.cloneDeep(player.loadout);
+        refreshTooltips();
+    }
+    nextTick(() => { copyLoadoutPlayer.value = null });
+};
 
 const refreshTooltips = () => {
     if (window.$WowheadPower) {
@@ -1011,6 +1098,292 @@ const refreshTooltips = () => {
     }
 };
 
+/**
+ * Export keys
+ * We use these to make exports smaller by removing the keys and storing the values are arrays
+ *
+ * DO NOT CHANGE ORDER, REMOVE KEYS, OR ADD KEYS IN THE MIDDLE OF THE ARRAYS
+ * ONLY ADD KEYS TO THE END
+ * OTHERWISE IMPORTS WILL BREAK
+ */
+const raidExportKeys = () => {
+    return [
+        "name", "faction", "config", "players", "_sync_buffs",
+    ];
+};
+const configExportKeys = () => {
+    return [
+        "rng_seed", "duration", "duration_variance", "avg_spell_dmg",
+        "target_level", "target_resistance", "targets", "distance",
+        "reaction_time", "player_delay",
+        "curse_of_elements", "curse_of_shadows",
+    ];
+};
+const playerExportKeys = () => {
+    return [
+        "name", "race", "level",
+        "mage_armor", "mana_spring", "imp_mana_spring", "dmf_dmg",
+        "arcane_intellect", "divine_spirit", "motw", "imp_motw", "moonkin_aura",
+        "blessing_of_wisdom", "imp_blessing_of_wisdom", "blessing_of_kings",
+        "atiesh_mage", "atiesh_warlock", "infallible_mind",
+        "songflower", "rallying_cry", "warchiefs_blessing", "spirit_of_zandalar",
+        "elixir_firepower", "elixir_greater_firepower", "elixir_frost_power",
+        "elixir_arcane", "elixir_greater_arcane",
+        "food", "flask", "weapon_oil",
+        "bonus_stats", "talents", "loadout",
+    ];
+};
+const exportSerialize = (keys, data) => {
+    if (!data.hasOwnProperty("x"))
+        data.x = [];
+    for (let key of keys) {
+        let value = _.get(data, key, 0);
+        if (value === true)
+            value = 1;
+        else if (value === false)
+            value = 0;
+        data.x.push(value);
+        delete data[key];
+    }
+};
+const importDeserialize = (keys, obj, data) => {
+    const configValue = (k, v) => {
+        if (v === undefined)
+            return obj[k];
+        if (obj[k] === false || obj[k] === true)
+            return v === 1 || v === true;
+        return v;
+    };
+
+    for (let key in data) {
+        if (key == "x") {
+            for (let i in data.x) {
+                let k = keys[i];
+                if (obj.hasOwnProperty(k))
+                    obj[k] = configValue(k, data.x[i]);
+            }
+        }
+        else if (key != "id") {
+            if (obj.hasOwnProperty(key))
+                obj[key] = configValue(key, data[i]);
+        }
+    }
+
+    return obj;
+};
+
+/**
+ * Export UI
+ */
+const exportType = ref("raid");
+const exportTypeOptions = computed(() => {
+    let options = [{value: "raid", title: "Raid"}];
+    if (activePlayer.value)
+        options.push({value: "player", title: "Player"});
+    return options;
+});
+const statsExportData = (stats) => {
+    let data = [];
+    let keys = _.keys(common.stats());
+    for (let key of keys)
+        data.push(_.get(stats, key, 0));
+    return data;
+};
+const statsImportData = (data) => {
+    let stats = common.stats();
+    let keys = _.keys(common.stats());
+    for (let i of data)
+        stats[keys[i]] = data[i];
+    return stats;
+};
+const loadoutExportData = (loadout) => {
+    loadout = _.cloneDeep(loadout);
+    for (let key in loadout) {
+        if (loadout[key].item_id)
+            loadout[key] = [loadout[key].item_id, loadout[key].enchant_id ? loadout[key].enchant_id : 0];
+        else
+            loadout[key] = [0,0];
+    }
+    let data = [];
+    for (let key of loadoutSlots())
+        data.push(loadout[key]);
+    return data;
+};
+const loadoutImportData = (data) => {
+    let loadout = baseLoadout();
+    let slots = loadoutSlots();
+    for (let i in slots) {
+        loadout[slots[i]] = {
+            item_id: (data[i][0] ? data[i][0] : null),
+            enchant_id: (data[i][1] ? data[i][1] : null),
+        };
+    }
+    return loadout;
+};
+const talentExportData = (talents) => {
+    let str = "";
+    for (let i in talents) {
+        if (i%16 == 0 && i != 0 && i < 33)
+            str+= "-";
+        str+= talents[i];
+    }
+    str = str.replace(/[0]+-/, "-");
+    str = str.replace(/[0]+$/, "");
+    str = str.replace(/[-]+$/, "");
+    return str;
+};
+const talentImportData = (talents) => {
+    return parseWowheadTalents(talents);
+};
+const exportPlayerData = (player) => {
+    player = _.cloneDeep(player);
+    player.bonus_stats = statsExportData(player.bonus_stats);
+    player.talents = talentExportData(player.talents);
+    player.loadout = loadoutExportData(player.loadout);
+    delete player.id;
+    delete player.stats;
+    exportSerialize(playerExportKeys(), player);
+    return player;
+};
+const importPlayerData = (data) => {
+    data = _.cloneDeep(data);
+    let player = defaultPlayer();
+
+    importDeserialize(playerExportKeys(), player, data);
+    player.loadout = loadoutImportData(player.loadout);
+    player.bonus_stats = statsImportData(player.bonus_stats);
+    player.talents = talentImportData(player.talents);
+
+    return player;
+};
+const exportRaidData = (raid) => {
+    raid = _.cloneDeep(raid);
+    for (let p in raid.players)
+        raid.players[p] = exportPlayerData(raid.players[p]);
+    exportSerialize(configExportKeys(), raid.config);
+    exportSerialize(raidExportKeys(), raid);
+    delete raid.id;
+    return raid;
+};
+const importRaidData = (data) => {
+    data = _.cloneDeep(data);
+    let raid = defaultRaid();
+    let config = defaultConfig();
+
+    importDeserialize(raidExportKeys(), raid, data);
+    raid.config = importDeserialize(configExportKeys(), config, raid.config);
+
+    for (let p in raid.players)
+        raid.players[p] = importPlayerData(raid.players[p]);
+
+    return raid;
+};
+const exportSuccess = ref(false);
+const exportSubmit = () => {
+    exportSuccess.value = false;
+
+    let data = {
+        exp: exportType.value,
+        data: null,
+    };
+
+    if (exportType.value == "raid") {
+        data.data = exportRaidData(activeRaid.value);
+    }
+    else if (exportType.value == "player" && activePlayer.value) {
+        data.data = exportPlayerData(activePlayer.value);
+    }
+    else {
+        alert("Invalid export type");
+        return;
+    }
+
+    data = window.LZString.compressToEncodedURIComponent(JSON.stringify(data));
+    data = window.location.origin+"#mse="+data;
+    copyToClipboard(data);
+    nextTick(() => { exportSuccess.value = true; });
+};
+const importData = ref("");
+const importSubmit = () => {
+    if (importString(importData.value)) {
+        importData.value = "";
+    }
+};
+const importString = (str) => {
+    if (!str.length)
+        return;
+
+    let type = null;
+    let data = null;
+    try {
+        data = JSON.parse(str);
+        if (data.phase)
+            type = "60up";
+        else if (data.gear && data.gear.items)
+            type = "wse";
+    }
+    catch (e) {
+        let m = str.match(/https\:\/\/(vanilla|sod)\.warcraftlogs\.com\/reports\/([a-z0-9]+)/i);
+        if (m) {
+            type = "wcl";
+            data = m[2];
+        }
+        else {
+            type = "native";
+            data = str;
+        }
+    }
+
+    // TODO
+    if (type == "60up") {
+
+    }
+    else if (type == "wse") {
+
+    }
+    else if (type == "wcl") {
+
+    }
+    else if (type == "native") {
+        try {
+            importNativeString(str);
+            return true;
+        }
+        catch (e) {}
+    }
+
+    // No matching imports
+    alert("Unrecognized format");
+    return false;
+};
+const importNativeString = (str) => {
+    let index = str.indexOf("#mse=");
+    if (index != -1)
+        str = str.substr(index+5);
+    let data = JSON.parse(window.LZString.decompressFromEncodedURIComponent(str));
+    importNative(data);
+};
+const importNative = (data) => {
+    if (!data.exp)
+        throw "Invalid export type";
+    if (data.exp == "raid") {
+        let raid = importRaidData(data.data);
+        raidModel.value = raid;
+        raidImport.value.open(true);
+    }
+    else if (data.exp == "player") {
+        let player = importPlayerData(data.data);
+        playerModel.value = player;
+        playerImport.value.open(true);
+    }
+    else {
+        throw "Invalid export type";
+    }
+};
+
+/**
+ * Result UI
+ */
 const resultHidden = ref(false);
 const resultOpen = ref(false);
 const closeResult = () => {
@@ -1018,37 +1391,6 @@ const closeResult = () => {
 };
 const openResult = () => {
     resultOpen.value = true;
-};
-
-const talentImport = ref("");
-const importTalents = () => {
-    let talents = parseTalents(talentImport.value);
-    if (talents)
-        activePlayer.value.talents = talents;
-    else
-        alert("Could not parse talent URL");
-    talentImport.value = "";
-};
-
-const onSyncBuffs = () => {
-    syncBuffs();
-};
-const syncBuffs = () => {
-    if (!activeRaid.value._sync_buffs)
-        return;
-    let skip = [
-        "id", "name", "race", "stats", "level",
-        "talents", "loadout", "bonus_stats",
-    ];
-    for (let player of activeRaid.value.players) {
-        if (player.id == activePlayer.value.id)
-            continue;
-        for (let key in activePlayer.value) {
-            if (skip.includes(key))
-                continue;
-            player[key] = activePlayer.value[key];
-        }
-    }
 };
 
 /**
@@ -1067,13 +1409,18 @@ watch(() => settings.raid_id, (value) => {
     }
 });
 watch(() => itemSearch.value, refreshTooltips);
-watch(() => activeTab.value, refreshTooltips);
+watch(() => activeTab.value, () => {
+    exportSuccess.value = false;
+    refreshTooltips();
+});
 watch(() => activeGearType.value, refreshTooltips);
 watch(() => activeSlot.value, refreshTooltips);
 watch(() => activePlayer.value, () => {
-    playerStats.value = visualStats(activePlayer.value);
-    syncBuffs();
-    refreshTooltips();
+    if (activePlayer.value) {
+        playerStats.value = visualStats(activePlayer.value);
+        syncBuffs();
+        refreshTooltips();
+    }
 }, {deep: true});
 watch(() => result.value, () => {
     activeResultTab.value = "overview";
@@ -1090,6 +1437,20 @@ onMounted(() => {
         nextTick(() => {
             playerStats.value = visualStats(activePlayer.value);
         });
+    }
+
+    if (window.location.hash) {
+        let hash = window.location.hash.substr(1);
+        if (hash.substr(0, 4) == "mse=") {
+            try {
+                importNativeString(hash.substr(4));
+            }
+            catch(e) {
+                alert("Could not import data");
+                console.log(e);
+            }
+            window.location.hash = "";
+        }
     }
 });
 </script>
@@ -1206,10 +1567,16 @@ onMounted(() => {
                             Talents
                         </div>
                     </template>
+                    <div class="tab" :class="{active: activeTab == 'export'}" @click="activeTab = 'export'">
+                        Export
+                    </div>
+                    <div class="tab" :class="{active: activeTab == 'import'}" @click="activeTab = 'import'">
+                        Import
+                    </div>
                 </div>
 
                 <div class="config" v-if="activeTab == 'config'">
-                    <div class="config-box config-raid">
+                    <div class="form-box config-raid">
                         <div class="title">Raid config</div>
                         <div>
                             <div class="form-cols">
@@ -1219,7 +1586,7 @@ onMounted(() => {
                                 </div>
                                 <div class="form-item">
                                     <label>Faction</label>
-                                    <select-simple v-model="activeRaid.faction" :options="factionOptions" :empty-option="false" />
+                                    <select-simple v-model="activeRaid.faction" :options="factionOptions" />
                                 </div>
                             </div>
                             <div class="form-cols">
@@ -1289,7 +1656,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="config-box config-player" v-if="activePlayer">
+                    <div class="form-box config-player" v-if="activePlayer">
                         <div class="title">Player config</div>
                         <div>
                             <div class="form-cols">
@@ -1299,7 +1666,7 @@ onMounted(() => {
                                 </div>
                                 <div class="form-item">
                                     <label>Race</label>
-                                    <select-simple v-model="activePlayer.race" :options="raceOptions" :empty-option="false" />
+                                    <select-simple v-model="activePlayer.race" :options="raceOptions" />
                                 </div>
                             </div>
                             <div class="form-item">
@@ -1512,7 +1879,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="config-box settings">
+                    <div class="form-box small config-settings">
                         <div class="title">Sim config</div>
                         <div>
                             <div class="form-item">
@@ -1535,7 +1902,6 @@ onMounted(() => {
                                 :options="otherPlayerOptions"
                                 @input="copyLoadout"
                                 placeholder="Copy gear from..."
-                                :empty-option="false"
                              />
                         </div>
                         <div class="paperdoll">
@@ -1689,12 +2055,44 @@ onMounted(() => {
                     </div>
                     <talent-calculator v-model="activePlayer.talents" />
                 </div>
+
+                <div class="export" v-if="activeTab == 'export'">
+                    <div class="form-box">
+                        <div class="title">Export</div>
+                        <div class="form-item">
+                            <label>What to export</label>
+                            <select-simple v-model="exportType" :options="exportTypeOptions" />
+                        </div>
+                        <div class="buttons">
+                            <button class="btn btn-primary" @click="exportSubmit">Export</button>
+                            <span class="middle copy-success" v-if="exportSuccess">
+                                <micon icon="check" />
+                                <span class="middle">Copied to clipboard!</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="import" v-if="activeTab == 'import'">
+                    <div class="form-box large">
+                        <div class="title">Import</div>
+                        <div class="form-item">
+                            <textarea v-model="importData" placeholder="Paste import string here"></textarea>
+                        </div>
+                        <div class="buttons">
+                            <button class="btn btn-primary" @click="importSubmit">Import</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="result-backdrop" @click="closeResult" v-if="resultOpen"></div>
         <div id="result" :class="{active: resultOpen}">
             <div class="result-content">
+                <button class="close" @click="closeResult">
+                    <micon icon="close" />
+                </button>
                 <template v-if="result">
                     <div class="tabs">
                         <div class="tab" :class="{active: activeResultTab == 'overview'}" @click="activeResultTab = 'overview'">
@@ -1811,7 +2209,7 @@ onMounted(() => {
             </div>
         </div>
 
-        <spotlight ref="raidEdit" class="small">
+        <spotlight ref="raidEdit" class="small" v-slot="{ close }">
             <div class="default raid-edit">
                 <div class="form-item">
                     <label>Name</label>
@@ -1819,10 +2217,11 @@ onMounted(() => {
                 </div>
                 <div class="form-item">
                     <label>Faction</label>
-                    <select-simple v-model="raidModel.faction" :options="factionOptions" :empty-option="false" />
+                    <select-simple v-model="raidModel.faction" :options="factionOptions" />
                 </div>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updateRaid">Save raid</button>
+                    <button class="btn btn-secondary" @click="close">Cancel</button>
                 </div>
             </div>
         </spotlight>
@@ -1835,12 +2234,39 @@ onMounted(() => {
                 </div>
                 <div class="form-item">
                     <label>Race</label>
-                    <select-simple v-model="playerModel.race" :options="raceOptions" :empty-option="false" />
+                    <select-simple v-model="playerModel.race" :options="raceOptions" />
                 </div>
                 <div class="form-item">
                     <label>Copy from</label>
                     <select-simple v-model="playerModelCopy" :options="playerCopyOptions" empty-option="None" />
                 </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="updatePlayer">Save player</button>
+                </div>
+            </div>
+        </spotlight>
+
+        <spotlight ref="playerImport" class="small">
+            <div class="default player-edit">
+                <div class="form-title">Import player</div>
+                <div class="form-item">
+                    <label>Import as</label>
+                    <select-simple v-model="playerModelCopy" :options="playerCopyOptions" empty-option="New player" />
+                </div>
+                <template v-if="playerModelCopy">
+                    <div class="form-item">
+                        <checkbox label="Import config"><input type="checkbox" v-model="playerImportConfig"></checkbox>
+                    </div>
+                    <div class="form-item">
+                        <checkbox label="Import gear"><input type="checkbox" v-model="playerImportLoadout"></checkbox>
+                    </div>
+                </template>
+                <template v-else>
+                    <div class="form-item">
+                        <label>Name</label>
+                        <input type="text" v-model="playerModel.name" @keydown.enter="updatePlayer">
+                    </div>
+                </template>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updatePlayer">Save player</button>
                 </div>

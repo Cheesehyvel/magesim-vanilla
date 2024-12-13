@@ -66,7 +66,7 @@ body {
                 right: 0;
                 background: var(--color-bg3);
                 z-index: 2;
-                animation: fade 0.3s ease, moveInFromAbove 0.3s ease;
+                animation: fadeIn 0.3s ease, moveInFromAbove 0.3s ease;
 
                 .raid {
                     padding: 15px 30px;
@@ -224,7 +224,7 @@ body {
             padding: 30px 30px 0;
 
             > * {
-                animation: fade 0.3s ease;
+                animation: fadeIn 0.3s ease;
             }
 
             > .progress {
@@ -404,31 +404,6 @@ body {
             max-height: calc(100vh - 80px);
             overflow: auto;
             padding: 30px;
-
-            .config-box {
-                float: left;
-                background: var(--color-bg2);
-                border: 1px solid var(--color-stroke);
-                border-radius: 2px;
-                padding: 15px;
-                width: 350px;
-                margin: 0 20px 20px 0;
-
-                &.settings {
-                    width: 150px;
-                }
-
-                > .title {
-                    color: rgba(255,255,255,0.7);
-                    font-size: 12px;
-                    font-weight: 700;
-                    padding-bottom: 5px;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    border-bottom: 2px solid var(--color-stroke-light);
-                    margin-bottom: 15px;
-                }
-            }
         }
 
         > .loadout {
@@ -542,6 +517,23 @@ body {
                 }
             }
         }
+
+        > .export {
+            padding: 30px;
+
+            .copy-success {
+                color: #0a0;
+                animation: fadeIn 0.2s ease;
+            }
+        }
+
+        > .import {
+            padding: 30px;
+
+            textarea {
+                height: 300px;
+            }
+        }
     }
 }
 
@@ -554,7 +546,7 @@ body {
     background: rgba(0,0,0,0.5);
     z-index: 99;
     cursor: pointer;
-    animation: fade 0.4s ease;
+    animation: fadeIn 0.4s ease;
 }
 #result {
     position: fixed;
@@ -570,9 +562,6 @@ body {
         height: 95vh;
     }
 
-    > .inner {
-    }
-
     > .result-content {
         position: relative;
         background: var(--color-bg2);
@@ -582,6 +571,28 @@ body {
         box-sizing: border-box;
         height: 95vh;
         overflow: auto;
+
+        > .close {
+            position: absolute;
+            right: 30px;
+            top: 20px;
+            padding: 0;
+            background: none;
+            border: none;
+            color: #99a;
+            text-align: center;
+            cursor: pointer;
+            transition: color 0.2s ease;
+
+            &:hover {
+                color: #fff;
+            }
+
+            .micon {
+                font-size: 20px;
+                line-height: 36px;
+            }
+        }
 
         > .tabs {
             @util clearfix;
@@ -913,7 +924,7 @@ button {
 
         th,
         td {
-            padding: 5px 10px;
+            padding: 5px 20px;
             border-bottom: 1px solid var(--color-stroke);
             text-align: left;
         }

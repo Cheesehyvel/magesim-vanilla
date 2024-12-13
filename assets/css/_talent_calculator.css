@@ -32,6 +32,34 @@
             text-transform: capitalize;
         }
 
+        > .link {
+            float: right;
+
+            a {
+                color: var(--color-grey);
+                border: 1px solid var(--color-stroke);
+                display: block;
+                padding: 0 5px;
+                border-radius: 4px;
+                line-height: 24px;
+                text-decoration: none;
+                font-size: 14px;
+                margin-left: 20px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    color: #fff;
+                    background: var(--color-primary);
+                    border-color: var(--color-primary);
+                }
+
+                .micon {
+                    font-size: 18px;
+                    margin-right: 4px;
+                }
+            }
+        }
+
         > .points {
             float: right;
         }
@@ -161,6 +189,11 @@
                         }
                     }
                 }
+            }
+
+            > .reset {
+                padding: 10px 0;
+                text-align: center;
             }
         }
     }

@@ -125,7 +125,23 @@ const clickTalent = (talent, rightclick) => {
 
     let arr = props.modelValue;
     arr[index] = newPoints;
-    return arr;
+    emits("update:modelValue", arr);
+};
+const resetTree = (tree) => {
+    let arr = props.modelValue;
+
+    let start = 0, end;
+    for (let t in talentTree.trees) {
+        end = start + talentTree.trees[t].talents.rows.flat().length;
+        if (talentTree.trees[t].name == tree.name) {
+            for (let i = start; i<end; i++)
+                arr[i] = 0;
+            break;
+        }
+        start = end;
+    }
+
+    emits("update:modelValue", arr);
 };
 
 const requiredClass = (talent) => {
@@ -166,6 +182,17 @@ const requiredClass = (talent) => {
     return cname;
 };
 
+const wowheadUrl = computed(() => {
+    let url = "https://www.wowhead.com/classic/talent-calc/"+talentTree.class+"/";
+    for (let t in talentTree.trees) {
+        let str = talentTree.trees[t].talents.rows.flat().map(t => talentPoints(t)).join("");
+        str = str.replace(/[0]+$/, "");
+        url+= str+"-";
+    }
+    url = url.replace(/[-]+$/, "");
+    return url;
+});
+
 const refreshTooltips = () => {
     if (window.$WowheadPower) {
         window.$WowheadPower.refreshLinks();
@@ -182,6 +209,12 @@ watch(() => props.modelValue, refreshTooltips);
         <div class="header">
             <div class="icon"><img :src="talentTree.icon" alt=""></div>
             <div class="name">{{ talentTree.class }}</div>
+            <div class="link">
+                <a :href="wowheadUrl" target="_blank">
+                    <micon icon="link" />
+                    <span class="middle">Link</span>
+                </a>
+            </div>
             <div class="points" :class="{empty: totalPoints == 0}">{{ totalPoints }} / {{ maxTalents }}</div>
         </div>
         <div class="trees">
@@ -218,6 +251,9 @@ watch(() => props.modelValue, refreshTooltips);
                             </div>
                         </template>
                     </div>
+                </div>
+                <div class="reset">
+                    <button class="btn btn-text block" @click="resetTree(tree)">Reset</button>
                 </div>
             </div>
         </div>

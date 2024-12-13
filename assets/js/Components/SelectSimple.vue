@@ -5,11 +5,11 @@ const props = defineProps(["modelValue", "options", "emptyOption", "placeholder"
 
 const el = ref();
 const emptyOption = computed(() => {
-    if (props.emptyOption === false)
-        return false;
+    if (props.emptyOption === true)
+        return "- Choose -";
     if (props.emptyOption && props.emptyOption !== true)
         return props.emptyOption;
-     return "- Choose -";
+     return false;
 });
 
 const optionTitle = (value) => {

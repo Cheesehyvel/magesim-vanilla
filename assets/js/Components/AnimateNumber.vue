@@ -67,7 +67,7 @@ const animate = () => {
     const value = fn(Math.min(1, elapsed / props.duration));
     let nr = props.start + value * (props.end - props.start);
     if (props.format == "round")
-        nr = _.round(nr, props.decimals);
+        nr = nr.toPrecision(props.decimals);
     else if (props.format == "fixed")
         nr = nr.toFixed(props.decimals);
     animatedNumber.value = nr;

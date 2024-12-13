@@ -265,3 +265,32 @@ div.icon-checkboxes {
         }
     }
 }
+
+.form-box {
+    float: left;
+    background: var(--color-bg2);
+    border: 1px solid var(--color-stroke);
+    border-radius: 2px;
+    padding: 15px;
+    width: 350px;
+    margin: 0 20px 20px 0;
+
+    &.small {
+        width: 150px;
+    }
+
+    &.large {
+        width: 700px;
+    }
+
+    > .title {
+        color: rgba(255,255,255,0.7);
+        font-size: 12px;
+        font-weight: 700;
+        padding-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 2px solid var(--color-stroke-light);
+        margin-bottom: 15px;
+    }
+}

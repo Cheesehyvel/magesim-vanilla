@@ -430,7 +430,7 @@ impl Sim {
 
         let mut log_text = format!("s[{}]", spell.name);
         if event.target_id != 0 {
-            log_text.push_str(&format!(" on t[{}]", self.target(event.target_id).name));
+            log_text.push_str(&format!(" -> t[{}]", self.target(event.target_id).name));
         }
         self.log_value(log::LogType::CastStart, log_text, event.unit_id, spell.this_cast_time);
 
@@ -593,6 +593,7 @@ impl Sim {
 
             let mut expire = Event::new(EventType::AuraExpire);
             expire.unit_id = event.unit_id;
+            expire.target_id = event.target_id;
             expire.t = aura.duration;
             expire.aura = Some(aura.clone());
             expire.is_main_event = false;
@@ -605,9 +606,17 @@ impl Sim {
 
             let a = event.aura.as_ref().unwrap();
             if event.target_id != 0 {
-                self.log(log::LogType::AuraGain, format!("a[{}] ({}) -> t[{}]", a.name, stacks, self.target(event.target_id).name), event.unit_id);
+                if a.max_stacks > 1 {
+                    self.log(log::LogType::AuraGain, format!("a[{}] ({}) -> t[{}]", a.name, stacks, self.target(event.target_id).name), event.unit_id);
+                } else {
+                    self.log(log::LogType::AuraGain, format!("a[{}] -> t[{}]", a.name, self.target(event.target_id).name), event.unit_id);
+                }
             } else {
-                self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, stacks), event.unit_id);
+                if a.max_stacks > 1 {
+                    self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, stacks), event.unit_id);
+                } else {
+                    self.log(log::LogType::AuraGain, format!("a[{}]", a.name), event.unit_id);
+                }
             }
         }
     }
@@ -617,8 +626,12 @@ impl Sim {
             return;
         }
 
-        let auras = self.units.get_mut(&event.unit_id).unwrap().auras();
         let aura = event.aura.as_ref().unwrap();
+        let auras = if event.target_id != 0 {
+            &mut self.targets.get_mut(&event.target_id).unwrap().auras
+        } else {
+            self.units.get_mut(&event.unit_id).unwrap().auras()
+        };
 
         if auras.has(aura.id, aura.owner_id) {
             auras.remove(aura.id, aura.owner_id);
@@ -627,7 +640,11 @@ impl Sim {
             let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
             self.handle_events(events);
 
-            self.log(log::LogType::AuraExpire, format!("a[{}]", aura.name), event.unit_id);
+            if event.target_id != 0 {
+                self.log(log::LogType::AuraExpire, format!("a[{}] != t[{}]", aura.name, self.target(event.target_id).name), event.unit_id);
+            } else {
+                self.log(log::LogType::AuraExpire, format!("a[{}]", aura.name), event.unit_id);
+            }
         }
     }
 
@@ -716,6 +733,18 @@ impl Sim {
                 for i in 1..=spell.ticks {
                     self.push_dot_tick(unit_id, spell, target_id, i, 0.0);
                 }
+
+                // Create an aura for the dot on the target
+                let mut aura = aura::Aura::new(spell.id, spell.name.clone(), (spell.ticks as f64) * spell.t_interval);
+                aura.owner_id = unit_id;
+                aura.is_shared = false;
+                let mut event = Event::new(EventType::AuraGain);
+                event.unit_id = unit_id;
+                event.target_id = target_id;
+                event.aura = Some(aura);
+                event.t = self.t;
+                event.is_main_event = false;
+                self.on_aura_gain(&mut event);
             } else {
                 // TODO
             }

@@ -73,7 +73,8 @@ defineExpose({
     open,
     close,
     focus,
-    adjust
+    adjust,
+    isOpen
 });
 </script>
 

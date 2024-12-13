@@ -475,7 +475,6 @@ var gear = {
         { id: 18450, title: "Robe of Combustion", ilvl: 60, int: 17, sp_fire: 26, q: "uncommon" },
         { id: 18385, title: "Robe of Everlasting Night", ilvl: 62, int: 13, spi: 5, sp: 27, q: "rare" },
         { id: 23069, title: "Necro-Knight's Garb", ilvl: 85, sp: 37 },
-        { id: 13388, title: "The Postmaster's Tunic", ilvl: 61, int: 20, spi: 10, sp: 15, q: "rare" },
         { id: 11924, title: "Robes of the Royal Crown", ilvl: 60, int: 12, spi: 10, sp: 18, q: "rare" },
         { id: 19156, title: "Flarecore Robe", ilvl: 66, sp: 23 },
         { id: 22652, title: "Glacial Vest", ilvl: 80, sp: 21 },

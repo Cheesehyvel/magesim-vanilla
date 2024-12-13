@@ -29,7 +29,6 @@ pub struct Config {
     pub distance: i32,
     pub reaction_time: f64,
     pub player_delay: f64,
-    pub pre_cast: bool,
 
     // Debuffs
     pub curse_of_elements: bool,
