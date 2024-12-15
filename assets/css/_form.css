@@ -20,6 +20,12 @@
 
         .textfield {
             width: 100%;
+
+            span {
+                @util truncate;
+                display: block;
+                width: calc(100% - 10px);
+            }
         }
 
         .icon {
@@ -49,10 +55,22 @@
         z-index: 2;
         overflow: auto;
         max-height: 300px;
+        animation: fadeIn 0.2s ease, moveInFromAbove 0.2s ease;
+
+        &.pos-top {
+            top: auto;
+            bottom: 100%;
+        }
 
         .option {
             padding: 8px 15px;
+            white-space: nowrap;
+            overflow: hidden;
             cursor: pointer;
+
+            &.active {
+                background: var(--color-bg1);
+            }
 
             &:hover {
                 background: var(--color-bg2);
@@ -207,21 +225,6 @@ div.icon-checkboxes {
     }
 }
 
-.form-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 5px;
-    padding: 0 0 5px;
-    color: rgba(255,255,255,0.7);
-    border-bottom: 1px solid var(--color-stroke-light);
-
-    &:nth-child(n+2) {
-        margin-top: 30px;
-    }
-}
-
 .form-item {
     &:nth-child(n+2) {
         margin-top: 15px;
@@ -266,6 +269,22 @@ div.icon-checkboxes {
     }
 }
 
+.form-box > .title,
+.form-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    padding: 0 0 5px;
+    color: rgba(255,255,255,0.7);
+    border-bottom: 1px solid var(--color-stroke-light);
+
+    &:nth-child(n+2) {
+        margin-top: 30px;
+    }
+}
+
 .form-box {
     float: left;
     background: var(--color-bg2);
@@ -279,18 +298,19 @@ div.icon-checkboxes {
         width: 150px;
     }
 
+    &.medium {
+        width: 240px;
+    }
+
     &.large {
         width: 700px;
     }
 
+    &.larger {
+        width: 900px;
+    }
+
     > .title {
-        color: rgba(255,255,255,0.7);
-        font-size: 12px;
-        font-weight: 700;
-        padding-bottom: 5px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        border-bottom: 2px solid var(--color-stroke-light);
         margin-bottom: 15px;
     }
 }

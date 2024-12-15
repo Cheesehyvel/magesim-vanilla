@@ -27,7 +27,6 @@ body {
         grid-auto-columns: 100%;
         grid-template-rows: 80px 1fr 150px;
         background: var(--color-bg2);
-        border-right: 1px solid rgba(0,0,0,0.2);
 
         > .raid {
             position: relative;
@@ -288,7 +287,7 @@ body {
                 box-sizing: border-box;
                 line-height: 1;
                 white-space: nowrap;
-                z-index: 2;
+                z-index: 4;
 
                 &:after {
                     position: absolute;
@@ -518,6 +517,13 @@ body {
             }
         }
 
+        > .rotation {
+            padding: 30px;
+            box-sizing: border-box;
+            max-height: calc(100vh - 80px);
+            overflow: auto;
+        }
+
         > .export {
             padding: 30px;
 
@@ -531,7 +537,7 @@ body {
             padding: 30px;
 
             textarea {
-                height: 300px;
+                height: 200px;
             }
         }
     }
@@ -661,9 +667,11 @@ body {
                     }
                 }
 
-                .total {
+                > .total,
+                > .ignite {
                     float: left;
                     position: relative;
+                    margin-left: 40px;
 
                     .progress-circle svg {
                         width: 200px;
@@ -677,10 +685,15 @@ body {
                     }
                 }
 
-                .players {
+                > .ignite {
+                    .progress-circle svg .percent {
+                        color: #d00;
+                    }
+                }
+
+                > .players {
                     width: 250px;
                     float: left;
-                    margin-right: 40px;
 
                     .player {
                         @util clearfix;
@@ -844,6 +857,11 @@ button {
     &.large {
         font-size: 18px;
         padding: 20px 25px;
+    }
+
+    &.small {
+        font-size: 12px;
+        padding: 3px 8px;
     }
 
     &.btn-primary {

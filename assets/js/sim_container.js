@@ -49,6 +49,7 @@ class SimContainer {
                         if (data.result.max_dps > sum.max_dps)
                             sum.max_dps = data.result.max_dps;
                         sum.dps = (sum.dps * sum.iterations + data.result.dps * data.result.iterations) / (sum.iterations + data.result.iterations);
+                        sum.ignite_dps = (sum.ignite_dps * sum.iterations + data.result.ignite_dps * data.result.iterations) / (sum.iterations + data.result.iterations);
 
                         for (let j=0; j<sum.players.length; j++) {
                             sum.players[j].dps = (sum.players[j].dps * sum.iterations + data.result.players[j].dps * data.result.iterations) / (sum.iterations + data.result.iterations);

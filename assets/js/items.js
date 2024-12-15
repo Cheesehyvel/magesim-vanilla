@@ -926,7 +926,6 @@ var gear = {
 
         { id: 21565, title: "Rune of Perfection", ilvl: 45, spen: 20, q: "rare", unique: true },
         { id: 21566, title: "Rune of Perfection", ilvl: 25, spen: 10, q: "rare", unique: true },
-        { id: ids.TRINKET_RECOMBO, title: "Minor Recombobulator", ilvl: 28, use: true, q: "uncommon", icon: "inv_gizmo_07" },
     ],
 };
 

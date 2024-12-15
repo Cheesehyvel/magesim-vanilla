@@ -9,12 +9,15 @@ pub struct PlayerConfig {
     pub stats: Stats,
     pub level: i32,
     pub talents: Vec<u8>,
+    pub items: Vec<i32>,
 
     // Buffs
     pub mage_armor: bool,
     pub mana_spring: bool,
     pub imp_mana_spring: bool,
     pub dmf_dmg: bool,
+    pub soul_revival: bool,
+    pub traces_of_silithyst: bool,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
@@ -33,6 +36,7 @@ pub struct Config {
     // Debuffs
     pub curse_of_elements: bool,
     pub curse_of_shadows: bool,
+    pub judgement_of_wisdom: bool,
 
     pub players: Vec<PlayerConfig>,
 }

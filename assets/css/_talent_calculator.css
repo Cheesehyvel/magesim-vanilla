@@ -6,6 +6,9 @@
         .talent.empty .num {
             display: none !important;
         }
+        > .header > .points {
+            color: var(--color-grey);
+        }
     }
 
     > .header {
@@ -34,17 +37,21 @@
 
         > .link {
             float: right;
+            margin-left: 10px;
 
-            a {
+            a,
+            button {
                 color: var(--color-grey);
                 border: 1px solid var(--color-stroke);
                 display: block;
                 padding: 0 5px;
+                background: none;
                 border-radius: 4px;
                 line-height: 24px;
                 text-decoration: none;
                 font-size: 14px;
-                margin-left: 20px;
+                font-weight: 600;
+                cursor: pointer;
                 transition: all 0.2s ease;
 
                 &:hover {
@@ -54,14 +61,25 @@
                 }
 
                 .micon {
+                    line-height: 24px;
                     font-size: 18px;
                     margin-right: 4px;
+                }
+            }
+
+            button {
+                &:hover {
+                    background: var(--color-danger);
+                    border-color: var(--color-danger);
                 }
             }
         }
 
         > .points {
             float: right;
+            margin-right: 20px;
+            font-size: 14px;
+            line-height: 26px;
         }
     }
 
@@ -200,7 +218,7 @@
 
     .required {
         position: absolute;
-        z-index: 10;
+        z-index: 3;
 
         &.up-1,
         &.up-2 {

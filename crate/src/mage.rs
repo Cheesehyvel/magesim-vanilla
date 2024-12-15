@@ -5,6 +5,7 @@ use crate::config::PlayerConfig;
 use crate::cooldown;
 use crate::event::Event;
 use crate::event::EventType;
+use crate::item;
 use crate::macros::console_log;
 use crate::sim::Sim;
 use crate::spell;
@@ -76,10 +77,11 @@ pub struct Mage {
     pub t_gcd: f64,
     pub t_mana_spent: f64,
     pub stats: Stats,
-    pub talents: Vec<u8>,
     pub auras: aura::Auras,
     pub cooldowns: cooldown::Cooldowns,
     pub rng: ChaCha8Rng,
+    _combustion: i32,
+    _mana_gems: i32,
 }
 
 impl Mage {
@@ -94,15 +96,28 @@ impl Mage {
             t_gcd: 0.0,
             t_mana_spent: 0.0,
             stats: Stats::default(),
-            talents: vec![],
             auras: aura::Auras::default(),
             cooldowns: cooldown::Cooldowns::default(),
             rng: ChaCha8Rng::from_entropy(),
+            _combustion: 0,
+            _mana_gems: 0,
         }
     }
 
     fn player_config(&self) -> &PlayerConfig {
         &self.config.as_ref().unwrap().players[(self.id as usize) - 1]
+    }
+
+    fn talent(&self, index: usize) -> u8 {
+        self.player_config().talents[index]
+    }
+
+    fn has_set(&self, set: i32, pc: i32) -> bool {
+        self.player_config().items.iter().filter(|&x| *x == set).count() >= pc as usize
+    }
+
+    fn has_item(&self, item_id: i32) -> bool {
+        self.player_config().items.contains(&item_id)
     }
 }
 
@@ -168,8 +183,8 @@ impl Unit for Mage {
         if self.player_config().mage_armor {
             while_casting+= 0.3;
         }
-        if self.player_config().talents[TALENT_ARCANE_MEDITATION] > 0 {
-            while_casting+= 0.05 * (self.player_config().talents[TALENT_ARCANE_MEDITATION] as f64);
+        if self.talent(TALENT_ARCANE_MEDITATION) > 0 {
+            while_casting+= 0.05 * (self.talent(TALENT_ARCANE_MEDITATION) as f64);
         }
         if self.t_mana_spent + 5.0 < t {
             while_casting = 1.0;
@@ -227,9 +242,7 @@ impl Unit for Mage {
             School::Shadow => {
                 sp+= self.stats.sp_shadow + self.auras.stats.sp_shadow;
             },
-            School::None => {
-                // Do nothing
-            }
+            _ => {}
         }
 
         sp
@@ -239,15 +252,36 @@ impl Unit for Mage {
         self.stats.spell_penetration + self.auras.stats.spell_penetration
     }
 
+    fn spell_mana_cost(&self, spell: &spell::Spell) -> f64 {
+        let mut cost = spell.mana_cost;
+
+        // Free spells
+        if self.auras.has_any(aura::CLEARCAST) {
+            return 0.0;
+        }
+
+        // Base cost modifiers
+        if self.auras.has_any(aura::BURST_OF_KNOWLEDGE) {
+            cost = (cost - 100.0).max(0.0);
+        }
+
+        // Multipliers
+        if self.auras.has_any(aura::ARCANE_POWER) {
+            cost*= 1.3;
+        }
+
+        cost
+    }
+
     fn spell_hit_chance(&self, spell: &spell::Spell) -> f64 {
         let mut hit = self.stats.hit + self.auras.stats.hit;
 
-        if spell.school == School::Arcane && self.player_config().talents[TALENT_ARCANE_FOCUS] > 0 {
-            hit+= 2.0 * (self.player_config().talents[TALENT_ARCANE_FOCUS] as f64);
+        if spell.school == School::Arcane && self.talent(TALENT_ARCANE_FOCUS) > 0 {
+            hit+= 2.0 * (self.talent(TALENT_ARCANE_FOCUS) as f64);
         }
 
-        if (spell.school == School::Fire || spell.school == School::Frost) && self.player_config().talents[TALENT_ELEMENTAL_PRECISION] > 0 {
-            hit+= 2.0 * (self.player_config().talents[TALENT_ELEMENTAL_PRECISION] as f64);
+        if (spell.school == School::Fire || spell.school == School::Frost) && self.talent(TALENT_ELEMENTAL_PRECISION) > 0 {
+            hit+= 2.0 * (self.talent(TALENT_ELEMENTAL_PRECISION) as f64);
         }
 
         hit
@@ -260,20 +294,24 @@ impl Unit for Mage {
             return crit;
         }
 
-        if self.player_config().talents[TALENT_INCINERATE] > 0 && (spell.id == spell::FIRE_BLAST || spell.id == spell::SCORCH) {
-            crit+= 2.0 * self.player_config().talents[TALENT_INCINERATE] as f64;
+        if self.talent(TALENT_INCINERATE) > 0 && (spell.id == spell::FIRE_BLAST || spell.id == spell::SCORCH) {
+            crit+= 2.0 * self.talent(TALENT_INCINERATE) as f64;
         }
 
-        if self.player_config().talents[TALENT_ARCANE_INSTABILITY] > 0 {
-            crit+= self.player_config().talents[TALENT_ARCANE_INSTABILITY] as f64;
+        if self.talent(TALENT_ARCANE_INSTABILITY) > 0 {
+            crit+= self.talent(TALENT_ARCANE_INSTABILITY) as f64;
         }
 
-        if self.player_config().talents[TALENT_CRITICAL_MASS] > 0 && spell.school == School::Fire {
-            crit+= 2.0 * self.player_config().talents[TALENT_CRITICAL_MASS] as f64;
+        if self.talent(TALENT_CRITICAL_MASS) > 0 && spell.school == School::Fire {
+            crit+= 2.0 * self.talent(TALENT_CRITICAL_MASS) as f64;
         }
 
         if self.auras.has_any(aura::COMBUSTION) && spell.school == School::Fire {
             crit+= 10.0 * self.auras.stacks(aura::COMBUSTION, self.id) as f64;
+        }
+
+        if self.auras.has_any(aura::ARCANE_POTENCY) && spell.school == School::Arcane {
+            crit+= 5.0;
         }
 
         crit
@@ -282,8 +320,12 @@ impl Unit for Mage {
     fn spell_crit_dmg_multiplier(&self, spell: &spell::Spell) -> f64 {
         let mut multi = 1.0;
 
-        if spell.school == School::Frost && self.player_config().talents[TALENT_ICE_SHARDS] > 0 {
-            multi+= self.player_config().talents[TALENT_ICE_SHARDS] as f64 * 0.2;
+        if spell.school == School::Frost && self.talent(TALENT_ICE_SHARDS) > 0 {
+            multi+= self.talent(TALENT_ICE_SHARDS) as f64 * 0.2;
+        }
+
+        if self.auras.has_any(aura::ARCANE_POTENCY) && spell.school == School::Arcane {
+            multi+= 0.5;
         }
 
         multi
@@ -296,14 +338,22 @@ impl Unit for Mage {
         if self.player_config().dmf_dmg {
             dmg*= 1.1;
         }
+        if self.player_config().soul_revival {
+            dmg*= 1.1;
+        }
+        if self.player_config().traces_of_silithyst {
+            dmg*= 1.05;
+        }
         if self.auras.has_any(aura::POWER_INFUSION) && !self.auras.has_any(aura::ARCANE_POWER) {
             dmg*= 1.2;
         }
-        // TODO: UDC
+        if self.has_set(item::SET_UDC, 3) {
+            dmg*= 1.02;
+        }
 
         // Additive category
-        if spell.school == School::Frost && self.player_config().talents[TALENT_PIERCING_ICE] > 0 {
-            additive+= 0.02 * (self.player_config().talents[TALENT_PIERCING_ICE] as f64);
+        if spell.school == School::Frost && self.talent(TALENT_PIERCING_ICE) > 0 {
+            additive+= 0.02 * (self.talent(TALENT_PIERCING_ICE) as f64);
         }
         if self.auras.has_any(aura::ARCANE_POWER) {
             additive+= 0.3;
@@ -311,11 +361,11 @@ impl Unit for Mage {
 
         // Ignite does not double dip talents
         if spell.id != spell::IGNITE {
-            if spell.school == School::Fire && self.player_config().talents[TALENT_FIRE_POWER] > 0 {
-                additive+= 0.02 * (self.player_config().talents[TALENT_FIRE_POWER] as f64);
+            if spell.school == School::Fire && self.talent(TALENT_FIRE_POWER) > 0 {
+                additive+= 0.02 * (self.talent(TALENT_FIRE_POWER) as f64);
             }
-            if self.player_config().talents[TALENT_ARCANE_INSTABILITY] > 0 {
-                additive+= 0.01 * (self.player_config().talents[TALENT_ARCANE_INSTABILITY] as f64);
+            if self.talent(TALENT_ARCANE_INSTABILITY) > 0 {
+                additive+= 0.01 * (self.talent(TALENT_ARCANE_INSTABILITY) as f64);
             }
         }
 
@@ -325,13 +375,16 @@ impl Unit for Mage {
     fn base_cast_time(&self, spell: &spell::Spell) -> f64 {
         let mut cast_time = spell.cast_time;
 
-        if spell.id == spell::FROSTBOLT && self.player_config().talents[TALENT_IMP_FROSTBOLT] > 0 {
-            cast_time-= 0.1 * (self.player_config().talents[TALENT_IMP_FROSTBOLT] as f64);
+        if spell.id == spell::FROSTBOLT && self.talent(TALENT_IMP_FROSTBOLT) > 0 {
+            cast_time-= 0.1 * (self.talent(TALENT_IMP_FROSTBOLT) as f64);
         }
-        if spell.id == spell::FIREBALL && self.player_config().talents[TALENT_IMP_FIREBALL] > 0 {
-            cast_time-= 0.1 * (self.player_config().talents[TALENT_IMP_FIREBALL] as f64);
+        if spell.id == spell::FIREBALL && self.talent(TALENT_IMP_FIREBALL) > 0 {
+            cast_time-= 0.1 * (self.talent(TALENT_IMP_FIREBALL) as f64);
         }
         if self.auras.has_any(aura::PRESENCE_OF_MIND) && !spell.is_channeled {
+            cast_time = 0.0;
+        }
+        if self.auras.has_any(aura::NETHERWIND_FOCUS) && !spell.is_channeled {
             cast_time = 0.0;
         }
 
@@ -341,7 +394,7 @@ impl Unit for Mage {
     fn spell_haste(&self) -> f64 {
         let mut haste = 1.0;
 
-        if self.auras.has_any(aura::MQG) {
+        if self.auras.has_any(aura::MIND_QUICKENING) {
             haste*= 1.33;
         }
         if self.auras.has_any(aura::BERSERKING) {
@@ -356,8 +409,11 @@ impl Unit for Mage {
     }
     
     fn spell_cooldown_mod(&self, spell: &spell::Spell) -> f64 {
-        if spell.id == spell::FIRE_BLAST && self.player_config().talents[TALENT_IMP_FIRE_BLAST] > 0 {
-            return -0.5 * (self.player_config().talents[TALENT_IMP_FIRE_BLAST] as f64);
+        if spell.id == spell::FIRE_BLAST && self.talent(TALENT_IMP_FIRE_BLAST) > 0 {
+            return -0.5 * (self.talent(TALENT_IMP_FIRE_BLAST) as f64);
+        }
+        if spell.id == spell::EVOCATION && self.has_set(item::SET_T3, 2) {
+            return -60.0;
         }
 
         0.0
@@ -385,7 +441,7 @@ impl Unit for Mage {
         // TODO: Rotation
         event.event_type = EventType::CastStart;
         event.target_id = 1;
-        if t < 2.0 {
+        if t < 5.0 {
             event.spell = Some(self.this_spell(spell::scorch()));
         } else if !self.cooldowns.has(spell::FIRE_BLAST) {
             event.spell = Some(self.this_spell(spell::fire_blast()));
@@ -398,16 +454,170 @@ impl Unit for Mage {
 
     fn on_event(&mut self, event: &Event) -> Vec<Event> {
         let mut events: Vec<Event> = Vec::new();
-        let fval: f64;
 
         match event.event_type {
             EventType::CastSuccess => {
                 if event.spell.is_some() {
                     let spell = event.spell.as_ref().unwrap();
+                    let is_harmful = spell.min_dmg > 0.0 || spell.max_dmg > 0.0;
 
-                    if spell.id == spell::MANA_RUBY {
-                        fval = self.rng.gen_range(1000..=1200) as f64;
-                        events.push(self.mana_event(fval, String::from("Mana Ruby")));
+                    // Item triggers
+                    if spell.is_trigger {
+                        match spell.id {
+                            // Mana gems
+                            spell::MANA_GEM => {
+                                if self._mana_gems == 0 {
+                                    let fval = self.rng.gen_range(1000..=1200) as f64;
+                                    events.push(self.mana_event(fval, String::from("Mana Ruby")));
+                                } else if self._mana_gems == 1 {
+                                    let fval = self.rng.gen_range(775..=925) as f64;
+                                    events.push(self.mana_event(fval, String::from("Mana Citrine")));
+                                } else if self._mana_gems == 2 {
+                                    let fval = self.rng.gen_range(550..=650) as f64;
+                                    events.push(self.mana_event(fval, String::from("Mana Jade")));
+                                } else if self._mana_gems == 3 {
+                                    let fval = self.rng.gen_range(375..=425) as f64;
+                                    events.push(self.mana_event(fval, String::from("Mana Agate")));
+                                }
+                                self._mana_gems+= 1;
+                                return events;
+                            }
+
+                            // Mana potions
+                            spell::MANA_POTION => {
+                                let mut fval = self.rng.gen_range(1350..=2250) as f64;
+                                if self.has_item(item::TRINKET_ALCHEMIST_STONE) {
+                                    fval*= 1.33;
+                                }
+                                events.push(self.mana_event(fval, String::from("Major Mana Potion")));
+                                return events;
+                            }
+
+                            // Trinkets
+                            spell::BURST_OF_KNOWLEDGE => {
+                                events.push(self.aura_event(aura::burst_of_knowledge(), 0));
+                                return events;
+                            }
+                            spell::CHAOS_FIRE => {
+                                let fval = self.rng.gen_range(1..=500) as f64;
+                                events.push(self.mana_event(fval, String::from("Fire Ruby")));
+                                events.push(self.aura_event(aura::chaos_fire(), 0));
+                                return events;
+                            }
+                            spell::CHROMATIC_INFUSION => {
+                                events.push(self.aura_event(aura::chromatic_infusion(), 0));
+                                return events;
+                            }
+                            spell::EPHEMERAL_POWER => {
+                                events.push(self.aura_event(aura::ephemeral_power(), 0));
+                                return events;
+                            }
+                            spell::ESSENCE_OF_SAPPHIRON => {
+                                events.push(self.aura_event(aura::essence_of_sapphiron(), 0));
+                                return events;
+                            }
+                            spell::MANA_INFUSION => {
+                                events.push(self.mana_event(500.0, String::from("Warmth of Forgiveness")));
+                                return events;
+                            }
+                            spell::MIND_QUICKENING => {
+                                events.push(self.aura_event(aura::mind_quickening(), 0));
+                                return events;
+                            }
+                            spell::NAT_PAGLE => {
+                                events.push(self.aura_event(aura::nat_pagle(), 0));
+                                return events;
+                            }
+                            spell::OBSIDIAN_INSIGHT => {
+                                events.push(self.aura_event(aura::obsidian_insight(), 0));
+                                return events;
+                            }
+                            spell::UNSTABLE_POWER => {
+                                events.push(self.aura_event(aura::unstable_power(), 0));
+                                return events;
+                            }
+
+                            // Other items
+                            spell::CELESTIAL_ORB => {
+                                let fval = self.rng.gen_range(400..=1200) as f64;
+                                events.push(self.mana_event(fval, spell.name.clone()));
+                                return events;
+                            }
+                            spell::ROBE_ARCHMAGE => {
+                                let fval = self.rng.gen_range(375..=625) as f64;
+                                events.push(self.mana_event(fval, spell.name.clone()));
+                                return events;
+                            }
+
+                            _ => {}
+                        }
+                    }
+
+                    // Now we get to class abilities
+
+                    // Triggers
+                    if spell.is_trigger {
+                        match spell.id {
+                            spell::ARCANE_POWER => {
+                                events.push(self.aura_event(aura::arcane_power(), 0));
+                            }
+                            spell::COLD_SNAP => {
+                                // No spells worth resetting lmao
+                            }
+                            spell::COMBUSTION => {
+                                events.push(self.aura_event(aura::combustion(), 0));
+                            }
+                            spell::EVOCATION => {
+                                events.push(self.aura_event(aura::evocation(), 0));
+                            }
+                            spell::INNERVATE => {
+                                events.push(self.aura_event(aura::innervate(), 0));
+                            }
+                            spell::MANA_TIDE => {
+                                events.push(self.mana_event_at(290.0, String::from("Mana Tide"), 3.0));
+                                events.push(self.mana_event_at(290.0, String::from("Mana Tide"), 6.0));
+                                events.push(self.mana_event_at(290.0, String::from("Mana Tide"), 9.0));
+                                events.push(self.mana_event_at(290.0, String::from("Mana Tide"), 12.0));
+                                events.push(self.aura_event(aura::mana_tide(), 0));
+                            }
+                            spell::POWER_INFUSION => {
+                                events.push(self.aura_event(aura::power_infusion(), 0));
+                            }
+                            spell::PRESENCE_OF_MIND => {
+                                events.push(self.aura_event(aura::presence_of_mind(), 0));
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if self.has_set(item::SET_T2, 8) && (spell.id == spell::ARCANE_MISSILES || spell.id == spell::FIREBALL || spell.id == spell::FROSTBOLT) && self.rng.gen_range(1..=10) == 1 {
+                        events.push(self.aura_event(aura::netherwind_focus(), 0));
+                    }
+
+                    // Instant cast buffs
+                    if spell.this_cast_time > 0.0 && !spell.is_channeled {
+                        if self.auras.has_any(aura::PRESENCE_OF_MIND) {
+                            events.push(self.aura_expire_event(aura::presence_of_mind(), 0));
+                        } else if self.auras.has_any(aura::NETHERWIND_FOCUS) {
+                            events.push(self.aura_expire_event(aura::netherwind_focus(), 0));
+                        }
+                    }
+
+                    if self.auras.has_any(aura::CLEARCAST) && !spell.is_trigger {
+                        events.push(self.aura_expire_event(aura::clearcast(), 0));
+                    }
+
+                    if spell.can_proc && self.has_item(item::TRINKET_BLUE_DRAGON) && self.rng.gen_range(1..=50) == 1 {
+                        events.push(self.aura_event(aura::blue_dragon(), 0));
+                    }
+
+                    if is_harmful {
+                        if self.auras.has_any(aura::UNSTABLE_POWER) {
+                            events.push(self.aura_event(aura::unstable_power(), 0));
+                        }
+                        if self.auras.has_any(aura::CHAOS_FIRE) && spell.school == School::Fire {
+                            events.push(self.aura_expire_event(aura::chaos_fire(), 0));
+                        }
                     }
                 }
             }
@@ -416,14 +626,66 @@ impl Unit for Mage {
                 if event.spell_instance.is_some() {
                     let instance = event.spell_instance.as_ref().unwrap();
 
-                    if instance.spell.id == spell::FIREBALL {
-                        events.push(self.spell_event(self.this_spell(spell::fireball_dot(instance.spell.rank)), event.target_id));
+                    if instance.result == spell::SpellResult::Miss && self.has_set(item::SET_AQ40, 5) {
+                        events.push(self.aura_event(aura::enigmas_answer(), 0));
                     }
 
-                    if instance.spell.id == spell::SCORCH && self.player_config().talents[TALENT_IMP_SCORCH] > 0 {
-                        let imp_sc = self.player_config().talents[TALENT_IMP_SCORCH] as i32;
-                        if imp_sc == 3 || self.rng.gen_range(0..2) < imp_sc {
+                    if instance.result != spell::SpellResult::Miss {
+                        // Secondary dots
+                        if instance.spell.id == spell::FIREBALL {
+                            events.push(self.spell_event(self.this_spell(spell::fireball_dot(instance.spell.rank)), event.target_id));
+                        }
+                        if instance.spell.id == spell::PYROBLAST {
+                            events.push(self.spell_event(self.this_spell(spell::pyroblast_dot(instance.spell.rank)), event.target_id));
+                        }
+                        if instance.spell.id == spell::FIRE_VULNERABILITY {
                             events.push(self.aura_event(aura::fire_vulnerability(), event.target_id));
+                        }
+
+                        if instance.spell.id == spell::SCORCH && self.talent(TALENT_IMP_SCORCH) > 0 {
+                            let imp_sc = self.talent(TALENT_IMP_SCORCH) as i32;
+                            if imp_sc == 3 || self.rng.gen_range(0..2) < imp_sc {
+                                events.push(self.spell_event(self.this_spell(spell::fire_vulnerability()), event.target_id));
+                            }
+                        }
+
+                        if !instance.spell.is_dot {
+                            if self.talent(TALENT_ARCANE_CONCENTRATION) > 0 {
+                                let mut fval = self.rng.gen_range(0.0..=100.0);
+                                // Less chance per tick for channeled spells
+                                if instance.spell.ticks > 0 {
+                                    fval/= instance.spell.ticks as f64;
+                                }
+                                if fval < (self.talent(TALENT_ARCANE_CONCENTRATION) as f64) * 2.0 {
+                                    events.push(self.aura_event(aura::clearcast(), 0));
+                                }
+                            }
+
+                            if self.auras.has_any(aura::COMBUSTION) && instance.spell.school == School::Fire {
+                                if instance.result == spell::SpellResult::Crit {
+                                    self._combustion+= 1;
+                                }
+                                if self._combustion == 3 {
+                                    events.push(self.aura_expire_event(aura::combustion(), 0));
+                                } else {
+                                    events.push(self.aura_event(aura::combustion(), 0));
+                                }
+                            }
+
+                            if self.talent(TALENT_WINTERS_CHILL) > 0 && instance.spell.school == School::Frost && (self.talent(TALENT_WINTERS_CHILL) == 5 || self.rng.gen_range(1..=5) <= self.talent(TALENT_WINTERS_CHILL) as i32) {
+                                events.push(self.aura_event(aura::winters_chill(), event.target_id));
+                            }
+                        }
+                    }
+
+                    if instance.result == spell::SpellResult::Crit {
+                        if self.talent(TALENT_IGNITE) > 0 && instance.spell.school == School::Fire && !instance.spell.is_proc && instance.dmg > 0.0 {
+                            events.push(self.spell_event(self.this_spell(spell::ignite(instance.dmg * 0.2)), event.target_id));
+                        }
+
+                        if self.talent(TALENT_MASTER_OF_ELEMENTS) > 0 && (instance.spell.school == School::Fire || instance.spell.school == School::Frost) && instance.spell.mana_cost > 0.0 {
+                            let mana = 0.1 * instance.spell.mana_cost * self.talent(TALENT_MASTER_OF_ELEMENTS) as f64;
+                            events.push(self.mana_event(mana, String::from("Master of Elements")));
                         }
                     }
                 }
@@ -437,13 +699,21 @@ impl Unit for Mage {
 
             EventType::AuraGain => {
                 if event.aura.is_some() {
-                    //
+                    let aura = event.aura.as_ref().unwrap();
+
+                    if aura.id == aura::COMBUSTION {
+                        self._combustion = 0;
+                    }
                 }
             }
 
             EventType::AuraExpire => {
                 if event.aura.is_some() {
-                    //
+                    let aura = event.aura.as_ref().unwrap();
+
+                    if aura.id == aura::COMBUSTION {
+                        events.push(self.spell_cooldown_event(spell::combustion()));
+                    }
                 }
             }
 

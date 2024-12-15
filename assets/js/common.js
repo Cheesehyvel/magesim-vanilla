@@ -1,4 +1,10 @@
 export default {
+    uuid: () => {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+            let r = Math.random() * 16 | 0, v = c == "x" ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    },
     stats: () => {
         return {
             int: 0,
@@ -34,4 +40,56 @@ export default {
         WIZARD: 25128,
         BRILLIANT_MANA: 20748,
     },
+    auras: {
+        ARCANE_POWER: 12042,
+        BERSERKING: 20554,
+        CLEARCAST: 12536,
+        COMBUSTION: 29977,
+        EVOCATION: 12051,
+        FIRE_VULNERABILITY: 22959,
+        INNERVATE: 29166,
+        PRESENCE_OF_MIND: 12043,
+        POWER_INFUSION: 10060,
+        WINTERS_CHILL: 12579,
+        ARCANE_POTENCY: 24544,
+        BLUE_DRAGON: 23688,
+        BURST_OF_KNOWLEDGE: 15646,
+        CHAOS_FIRE: 24389,
+        CHROMATIC_INFUSION: 27675,
+        EPHEMERAL_POWER: 23271,
+        ESSENCE_OF_SAPPHIRON: 28779,
+        MIND_QUICKENING: 23723,
+        NAT_PAGLE: 24610,
+        OBSIDIAN_INSIGHT: 26166,
+        UNSTABLE_POWER: 24658,
+        ENIGMAS_ANSWER: 26129,
+        NETHERWIND_FOCUS: 22007,
+    },
+    cooldowns: {
+        ARCANE_POWER: 12042,
+        BERSERKING: 20554,
+        COLD_SNAP: 11958,
+        COMBUSTION: 29977,
+        EVOCATION: 12051,
+        FIRE_BLAST: 10199,
+        PRESENCE_OF_MIND: 12043,
+        // Trinkets
+        ARCANE_POTENCY: 24544,
+        BURST_OF_KNOWLEDGE: 15646,
+        CHAOS_FIRE: 24389,
+        CHROMATIC_INFUSION: 27675,
+        EPHEMERAL_POWER: 23271,
+        ESSENCE_OF_SAPPHIRON: 28779,
+        MANA_INFUSION: 28760,
+        MIND_QUICKENING: 23723,
+        NAT_PAGLE: 24610,
+        OBSIDIAN_INSIGHT: 26166,
+        UNSTABLE_POWER: 24658,
+        // Items
+        CELESTIAL_ORB: 9253,
+        ENGULFING_SHADOWS: 27860,
+        MANA_GEM: 10058,
+        MANA_POTION: 17531,
+        ROBE_ARCHMAGE: 18385,
+    }
 };

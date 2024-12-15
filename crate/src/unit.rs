@@ -105,6 +105,17 @@ pub trait Unit {
         }
     }
 
+    fn mana_event_at(&self, mana: f64, text: String, t: f64) -> Event {
+        Event {
+            t: t,
+            event_type: EventType::ManaGain,
+            unit_id: self.id(),
+            text,
+            is_main_event: false,
+            ..Default::default()
+        }
+    }
+
     fn spell_event(&self, spell: Spell, target_id: i32) -> Event {
         Event {
             event_type: EventType::CastStart,
@@ -127,5 +138,36 @@ pub trait Unit {
             is_main_event: false,
             ..Default::default()
         }
+    }
+
+    fn aura_expire_event(&self, mut aura: aura::Aura, target_id: i32) -> Event {
+        aura.owner_id = self.id();
+
+        Event {
+            event_type: EventType::AuraExpire,
+            unit_id: self.id(),
+            target_id,
+            aura: Some(aura),
+            is_main_event: false,
+            ..Default::default()
+        }
+    }
+
+    fn spell_cooldown_event(&self, spell: Spell) -> Event {
+        let mut event = Event::new(EventType::CooldownGain);
+        event.is_main_event = false;
+        event.unit_id = self.id();
+        event.cooldown = Some(cooldown::Cooldown::new(spell.id, spell.name.clone(), spell.cooldown));
+
+        event
+    }
+
+    fn cooldown_expire_event(&self, id: i32, name: String) -> Event {
+        let mut event = Event::new(EventType::CooldownExpire);
+        event.unit_id = self.id();
+        event.cooldown = Some(cooldown::Cooldown::new(id, name, 0.0));
+        event.is_main_event = false;
+
+        event
     }
 }

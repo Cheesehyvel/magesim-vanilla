@@ -1,4 +1,8 @@
 import AnimateNumber from "./Components/AnimateNumber.vue";
+import Apl from "./Components/Apl.vue";
+import AplAction from "./Components/AplAction.vue";
+import AplCondition from "./Components/AplCondition.vue";
+import AplValue from "./Components/AplValue.vue";
 import Checkbox from "./Components/Checkbox.vue";
 import CombatChart from "./Components/CombatChart.vue";
 import Help from "./Components/Help.vue";
@@ -15,6 +19,10 @@ import Wowicon from "./Components/Wowicon.vue";
 export default {
     install(app) {
         app.component("animate-number", AnimateNumber);
+        app.component("apl", Apl);
+        app.component("apl-action", AplAction);
+        app.component("apl-condition", AplCondition);
+        app.component("apl-value", AplValue);
         app.component("checkbox", Checkbox);
         app.component("combat-chart", CombatChart);
         app.component("help", Help);

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+const TRINKET_POWER: i32 = 1;
+
 #[derive(Default, Clone)]
 pub struct Cooldown {
     pub id: i32,
@@ -7,6 +9,7 @@ pub struct Cooldown {
     pub duration: f64,
     pub t_gained: f64,
     pub t_expires: f64,
+    pub is_hidden: bool,
 }
 
 impl Cooldown {
@@ -56,3 +59,14 @@ impl Cooldowns {
 
 }
 
+
+/*
+ * Defined cooldowns
+ */
+
+pub fn shared_trinket_power(duration: f64) -> Cooldown {
+    let mut cooldown = Cooldown::new(0, String::from("Trinket Power"), duration);
+    cooldown.is_hidden = true;
+
+    cooldown
+}

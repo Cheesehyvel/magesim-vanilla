@@ -93,8 +93,8 @@ const clickTalent = (talent, rightclick) => {
         }
         // Check if there are any points further down the tree
         let i = start;
-        let tp = 0;
         let trow = 10;
+        let pointsPrev = 0, pointsCur = 0;
         for (let r = 0; r<tree.talents.rows.length; r++) {
             for (let t in tree.talents.rows[r]) {
                 if (tree.talents.rows[r][t].name == talent.name)
@@ -102,18 +102,18 @@ const clickTalent = (talent, rightclick) => {
                 if (r > trow) {
                     if (props.modelValue[i] > 0) {
                         // The talent point in question is required for another row, so we cant remove it
-                        if (tp <= r * 5)
+                        if (pointsPrev <= r * 5)
                             return;
                         // The talent in question is required by another, so we cant remove it
                         if (tree.talents.rows[r][t].requires && tree.talents.rows[r][t].requires == talent.name)
                             return;
                     }
                 }
-                else {
-                    tp+= props.modelValue[i];
-                }
+                pointsCur+= props.modelValue[i];
                 i++;
             }
+            pointsPrev+= pointsCur;
+            pointsCur = 0;
         }
     }
     else {
@@ -142,6 +142,9 @@ const resetTree = (tree) => {
     }
 
     emits("update:modelValue", arr);
+};
+const reset = () => {
+    emits("update:modelValue", new Array(maxTalents).fill(0));
 };
 
 const requiredClass = (talent) => {
@@ -215,7 +218,13 @@ watch(() => props.modelValue, refreshTooltips);
                     <span class="middle">Link</span>
                 </a>
             </div>
-            <div class="points" :class="{empty: totalPoints == 0}">{{ totalPoints }} / {{ maxTalents }}</div>
+            <div class="link">
+                <button @click="reset">
+                    <micon icon="close" />
+                    <span class="middle">Reset</span>
+                </button>
+            </div>
+            <div class="points" :class="{empty: totalPoints == 0}">Points left: {{ remainingPoints }}</div>
         </div>
         <div class="trees">
             <div class="tree" v-for="(tree, t) in talentTree.trees" :key="tree.name">

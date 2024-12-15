@@ -6,6 +6,7 @@ mod common;
 mod stats;
 mod macros;
 mod config;
+mod item;
 mod spell;
 mod aura;
 mod cooldown;

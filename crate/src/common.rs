@@ -16,7 +16,9 @@ pub enum School {
     Arcane,
     Fire,
     Frost,
+    Holy,
     Nature,
+    Physical,
     Shadow,
 }
 

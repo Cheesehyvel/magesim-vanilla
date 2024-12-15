@@ -4,17 +4,12 @@ import { computed, ref, reactive, watch, onMounted, nextTick } from "vue";
 import common from "./common";
 import icons from "./icons";
 import items from "./items";
+import aplData from "./apl";
 import _ from "lodash";
 
-/**
+/*
  * Helpers
  */
-const uuid = () => {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-        let r = Math.random() * 16 | 0, v = c == "x" ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-};
 const css = (str) => {
     return _.kebabCase(str);
 };
@@ -62,7 +57,7 @@ const copyToClipboard = (str) => {
     document.body.removeChild(el);
 };
 
-/**
+/*
  * Stats
  */
 const baseStats = (race) => {
@@ -95,7 +90,7 @@ const addStats = (a, b) => {
     return stats;
 };
 
-/**
+/*
  * Talents
  */
 const baseTalents = () => {
@@ -128,7 +123,7 @@ const parseWowheadTalents = (str) => {
 };
 
 
-/**
+/*
  * Gear / loadout
  */
 const loadoutSlotToItemSlot = (slot) => {
@@ -246,8 +241,28 @@ const loadoutStats = (loadout) => {
     }
     return stats;
 };
+const isItemSpecial = (id) => {
+    for (let key in items.ids) {
+        if (items.ids[key] == id)
+            return true;
+    }
+    return false;
+};
+const loadoutSimItems = (loadout) => {
+    let arr = [];
+    for (let slot in loadout) {
+        let item = getItem(slot, loadout[slot].item_id);
+        if (item) {
+            if (item.id && isItemSpecial(item.id))
+                arr.push(item.id);
+            if (item.set)
+                arr.push(item.set);
+        }
+    }
+    return arr;
+};
 
-/**
+/*
  * Config
  */
 const defaultConfig = () => {
@@ -264,10 +279,11 @@ const defaultConfig = () => {
         player_delay: 0.1,
         curse_of_elements: false,
         curse_of_shadows: false,
+        judgement_of_wisdom: false,
     };
 };
 
-/**
+/*
  * Player
  */
 const simDefaultPlayer = () => {
@@ -277,15 +293,18 @@ const simDefaultPlayer = () => {
         talents: parseTalents("https://www.wowhead.com/classic/talent-calc/mage/230005230002-5052000123033151-003"),
         stats: baseStats("Undead"),
         level: 60,
+        items: [],
         mage_armor: true,
         mana_spring: true,
         imp_mana_spring: true,
         dmf_dmg: false,
+        soul_revival: false,
+        traces_of_silithyst: false,
     };
 };
 const defaultPlayer = () => {
     return _.merge(simDefaultPlayer(), {
-        id: uuid(),
+        id: common.uuid(),
         arcane_intellect: true,
         divine_spirit: true,
         motw: true,
@@ -311,6 +330,8 @@ const defaultPlayer = () => {
         weapon_oil: common.weapon_oils.BRILLIANT_WIZARD,
         loadout: baseLoadout(),
         bonus_stats: common.stats(),
+        // TODO: Move to simDefaultConfig
+        apl: aplData.apl(),
     });
 };
 const createPlayer = (name) => {
@@ -330,12 +351,12 @@ const activePlayer = computed(() => {
     return activeRaid.value.players.find(player => player.id == activePlayerId.value);
 });
 
-/**
+/*
  * Raid
  */
 const defaultRaid = (name) => {
     return {
-        id: uuid(),
+        id: common.uuid(),
         name: "My raid",
         faction: "Horde",
         config: defaultConfig(),
@@ -352,6 +373,8 @@ const loadRaids = () => {
         raids = [defaultRaid()];
     }
     else {
+        let defRaid = defaultRaid();
+        let defPlayer = defaultPlayer();
         // Convert old data
         for (let raid of raids) {
             delete raid.config.pre_cast;
@@ -362,6 +385,18 @@ const loadRaids = () => {
                     player.bonus_stats = player.extra_stats;
                     delete player.extra_stats;
                 }
+                for (let key in defPlayer) {
+                    if (!player.hasOwnProperty(key))
+                        player[key] = defPlayer[key];
+                }
+            }
+            for (let key in defRaid) {
+                if (!raid.hasOwnProperty(key))
+                    raid[key] = defRaid[key];
+            }
+            for (let key in defRaid.config) {
+                if (!raid.config.hasOwnProperty(key))
+                    raid.config[key] = defRaid.config[key];
             }
         }
     }
@@ -384,7 +419,7 @@ const activeRaid = computed(() => {
     return raids.value.find(raid => raid.id == settings.raid_id);
 });
 
-/**
+/*
  * Settings
  */
 const defaultSettings = () => {
@@ -414,7 +449,7 @@ const saveSettings = () => {
 };
 const settings = reactive(loadSettings());
 
-/**
+/*
  * Run simulation
  */
 const result = ref(null);
@@ -526,12 +561,19 @@ const simConfig = () => {
             delete config[key];
     }
 
+    if (config.targets < 1)
+        config.targets = 1;
+
+    if (activeRaid.value.faction == "Horde" && config.judgement_of_wisdom)
+        config.judgement_of_wisdom = false;
+
     config.players = [];
     for (let p of activeRaid.value.players) {
         let player = simDefaultPlayer();
         for (var key in player)
             player[key] = _.cloneDeep(p[key]);
         player.stats = simStats(p);
+        player.items = loadoutSimItems(p.loadout);
         config.players.push(player);
     }
 
@@ -573,7 +615,7 @@ const runMultiple = () => {
     sc.start();
 };
 
-/**
+/*
  * Combat log
  */
 const formatter = (text, key, cl) => {
@@ -619,7 +661,7 @@ const filteredLog = computed(() => {
 });
 
 
-/**
+/*
  * Confirmation
  */
 const confirmSpotlight = ref();
@@ -658,7 +700,7 @@ const alertClose = () => {
     alertSpotlight.value.close();
 };
 
-/**
+/*
  * Raid UI
  */
 const raidSelectOpen = ref(false);
@@ -710,7 +752,7 @@ const factionOptions = [
     { value: "Horde", title: "Horde" },
 ];
 
-/**
+/*
  * Player UI
  */
 const playerStats = ref(common.stats());
@@ -852,7 +894,7 @@ const raceOptions = computed(() => {
     ];
 });
 
-/**
+/*
  * Main panel UI
  */
 const activeTab = ref("config");
@@ -860,7 +902,7 @@ const activeSlot = ref("head");
 const activeGearType = ref("gear");
 const activeResultTab = ref("overview");
 
-/**
+/*
  * Config UI
  */
 const otherPlayerOptions = computed(() => {
@@ -907,7 +949,7 @@ const syncBuffs = () => {
     if (!activeRaid.value._sync_buffs)
         return;
     let skip = [
-        "id", "name", "race", "stats", "level",
+        "id", "name", "race", "stats", "level", "apl",
         "talents", "loadout", "bonus_stats",
     ];
     for (let player of activeRaid.value.players) {
@@ -921,7 +963,7 @@ const syncBuffs = () => {
     }
 };
 
-/**
+/*
  * Item UI
  */
 const paperdollSlots = (pos) => {
@@ -1098,9 +1140,9 @@ const refreshTooltips = () => {
     }
 };
 
-/**
+/*
  * Export keys
- * We use these to make exports smaller by removing the keys and storing the values are arrays
+ * We use these to make exports smaller by removing the keys and storing the values as arrays
  *
  * DO NOT CHANGE ORDER, REMOVE KEYS, OR ADD KEYS IN THE MIDDLE OF THE ARRAYS
  * ONLY ADD KEYS TO THE END
@@ -1116,13 +1158,14 @@ const configExportKeys = () => {
         "rng_seed", "duration", "duration_variance", "avg_spell_dmg",
         "target_level", "target_resistance", "targets", "distance",
         "reaction_time", "player_delay",
-        "curse_of_elements", "curse_of_shadows",
+        "curse_of_elements", "curse_of_shadows", "judgement_of_wisdom",
     ];
 };
 const playerExportKeys = () => {
     return [
         "name", "race", "level",
-        "mage_armor", "mana_spring", "imp_mana_spring", "dmf_dmg",
+        "mage_armor", "mana_spring", "imp_mana_spring",
+        "dmf_dmg", "soul_revival", "traces_of_silithyst",
         "arcane_intellect", "divine_spirit", "motw", "imp_motw", "moonkin_aura",
         "blessing_of_wisdom", "imp_blessing_of_wisdom", "blessing_of_kings",
         "atiesh_mage", "atiesh_warlock", "infallible_mind",
@@ -1172,7 +1215,7 @@ const importDeserialize = (keys, obj, data) => {
     return obj;
 };
 
-/**
+/*
  * Export UI
  */
 const exportType = ref("raid");
@@ -1242,6 +1285,7 @@ const exportPlayerData = (player) => {
     player.loadout = loadoutExportData(player.loadout);
     delete player.id;
     delete player.stats;
+    delete player.items;
     exportSerialize(playerExportKeys(), player);
     return player;
 };
@@ -1284,6 +1328,7 @@ const exportSubmit = () => {
 
     let data = {
         exp: exportType.value,
+        v: "1.0",
         data: null,
     };
 
@@ -1334,7 +1379,7 @@ const importString = (str) => {
         }
     }
 
-    // TODO
+    // TODO: External import sources
     if (type == "60up") {
 
     }
@@ -1381,7 +1426,7 @@ const importNative = (data) => {
     }
 };
 
-/**
+/*
  * Result UI
  */
 const resultHidden = ref(false);
@@ -1393,7 +1438,7 @@ const openResult = () => {
     resultOpen.value = true;
 };
 
-/**
+/*
  * Watchers
  */
 watch(settings, saveSettings, {deep : true});
@@ -1427,7 +1472,7 @@ watch(() => result.value, () => {
     resultHidden.value = false;
 });
 
-/**
+/*
  * Events
  */
 onMounted(() => {
@@ -1566,6 +1611,9 @@ onMounted(() => {
                         <div class="tab" :class="{active: activeTab == 'talents'}" @click="activeTab = 'talents'">
                             Talents
                         </div>
+                        <div class="tab" :class="{active: activeTab == 'rotation'}" @click="activeTab = 'rotation'">
+                            Rotation
+                        </div>
                     </template>
                     <div class="tab" :class="{active: activeTab == 'export'}" @click="activeTab = 'export'">
                         Export
@@ -1611,6 +1659,11 @@ onMounted(() => {
                                         <input type="checkbox" v-model="activeRaid.config.curse_of_shadows">
                                         <wowicon icon="curse_of_shadows" />
                                         <tooltip>Curse of Shadows</tooltip>
+                                    </label>
+                                    <label v-if="activeRaid.faction == 'Alliance'">
+                                        <input type="checkbox" v-model="activeRaid.config.judgement_of_wisdom">
+                                        <wowicon icon="judgement_of_wisdom" />
+                                        <tooltip>Judgement of Wisdom</tooltip>
                                     </label>
                                 </div>
                             </div>
@@ -1744,6 +1797,16 @@ onMounted(() => {
                                         <input type="checkbox" v-model="activePlayer.dmf_dmg">
                                         <wowicon icon="dmf" />
                                         <tooltip>Sayge's Dark Fortune of Damage</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.soul_revival">
+                                        <wowicon icon="soul_revival" />
+                                        <tooltip>Soul Revival</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.traces_of_silithyst">
+                                        <wowicon icon="traces_of_silithyst" />
+                                        <tooltip>Traces of Silithyst</tooltip>
                                     </label>
                                     <label>
                                         <input type="checkbox" v-model="activePlayer.songflower">
@@ -2056,6 +2119,16 @@ onMounted(() => {
                     <talent-calculator v-model="activePlayer.talents" />
                 </div>
 
+                <div class="rotation" v-if="activeTab == 'rotation' && activePlayer">
+                    <div class="form-box larger">
+                        <div class="form-title">Rotation</div>
+                        <apl v-model="activePlayer.apl" :player="activePlayer" />
+                    </div>
+                    <div class="form-box medium">
+                        <div class="form-title">List</div>
+                    </div>
+                </div>
+
                 <div class="export" v-if="activeTab == 'export'">
                     <div class="form-box">
                         <div class="title">Export</div>
@@ -2139,6 +2212,15 @@ onMounted(() => {
                                         <animate-number :end="result.dps" />
                                     </div>
                                     <div class="notice" v-if="result.iterations">{{ result.min_dps.toFixed() }} - {{ result.max_dps.toFixed() }}</div>
+                                </div>
+                            </div>
+                            <div class="ignite progress-wrapper" v-if="result.ignite_dps">
+                                <progress-circle :value="result.ignite_dps / result.dps" :animate="true" />
+                                <div class="center">
+                                    <div class="title">Ignite dps</div>
+                                    <div class="value">
+                                        <animate-number :end="result.ignite_dps" />
+                                    </div>
                                 </div>
                             </div>
                         </div>

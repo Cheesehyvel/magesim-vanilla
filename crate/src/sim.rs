@@ -36,6 +36,8 @@ pub struct SimulationResult {
     pub t: f64,
     pub dmg: u64,
     pub dps: f64,
+    pub ignite_dmg: u64,
+    pub ignite_dps: f64,
     pub players: Vec<PlayerResult>,
     pub log: Vec<log::LogEntry>,
 }
@@ -47,6 +49,7 @@ pub struct SimulationsResult {
     pub dps: f64,
     pub min_dps: f64,
     pub max_dps: f64,
+    pub ignite_dps: f64,
     pub players: Vec<PlayerResult>,
 }
 
@@ -71,6 +74,8 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
         let r = sim.run();
 
         result.dps+= (r.dps - result.dps) / (i as f64);
+        result.ignite_dps+= (r.ignite_dps - result.ignite_dps) / (i as f64);
+
         if i == 1 || r.dps < result.min_dps {
             result.min_dps = r.dps;
         }
@@ -156,6 +161,7 @@ impl Sim {
 
         self.result.dmg = self.total_dmg();
         self.result.dps = (self.result.dmg as f64) / self.result.t;
+        self.result.ignite_dps = (self.result.ignite_dmg as f64) / self.result.t;
         self.result.log = self.log.clone();
 
         for i in 1..=self.config.players.len() {
@@ -203,11 +209,11 @@ impl Sim {
     }
 
     fn unit(&self, unit_id: i32) -> &dyn Unit {
-        return self.units[&unit_id].as_ref();
+        self.units[&unit_id].as_ref()
     }
 
     fn target(&self, target_id: i32) -> &Target {
-        return &self.targets[&target_id];
+        &self.targets[&target_id]
     }
 
     fn total_dmg(&self) -> u64 {
@@ -234,8 +240,12 @@ impl Sim {
 
     fn handle_events(&mut self, events: Vec<Event>) {
         for mut event in events {
-            event.t = self.t;
-            self.handle_event(&mut event);
+            if event.t == 0.0 {
+                event.t = self.t;
+                self.handle_event(&mut event);
+            } else {
+                self.push_event(event);
+            }
         }
     }
 
@@ -410,7 +420,7 @@ impl Sim {
     }
 
     fn can_cast(&mut self, unit_id: i32, spell: &spell::Spell) -> bool {
-        return self.unit(unit_id).current_mana() >= spell.this_mana_cost;
+        self.unit(unit_id).current_mana() >= spell.this_mana_cost
     }
 
     fn cast_spell(&mut self, unit_id: i32, spell: spell::Spell, target_id: i32) {
@@ -481,11 +491,11 @@ impl Sim {
             self.push_spell_impact(event.unit_id, spell, event.target_id, spell.travel_time(self.config.distance as f64));
         }
 
-        if event.is_main_event {
-            event.event_type = EventType::CastSuccess;
-            let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
-            self.handle_events(events);
+        event.event_type = EventType::CastSuccess;
+        let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
+        self.handle_events(events);
 
+        if event.is_main_event {
             if spell.is_channeled && spell.this_cast_time > 0.0 {
                 self.push_idle(event.unit_id, spell.this_cast_time, String::from(""));
             } else {
@@ -505,16 +515,36 @@ impl Sim {
             self.roll_spell_instance(event.unit_id, instance, event.target_id);
         }
 
-        if instance.spell.is_dot {
+        if instance.spell.is_dot && instance.spell.id != spell::IGNITE {
             instance.dmg*= self.spell_debuff_dmg_multiplier(event.unit_id, &instance.spell, event.target_id);
         }
 
         if instance.dmg > 0.0 && event.unit_id != 0 {
-            self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_dmg(event.unit_id, instance.dmg as u64);
+            self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_dmg(event.unit_id, instance.dmg.round() as u64);
         }
 
-        let si = event.spell_instance.as_ref().unwrap();
-        self.log_spell_impact(event.unit_id, event.spell_instance.as_ref().unwrap(), event.target_id);
+        if instance.spell.id == spell::IGNITE {
+            self.result.ignite_dmg+= instance.dmg.round() as u64;
+        }
+
+        let inst = event.spell_instance.as_ref().unwrap();
+        if inst.spell.min_dmg > 0.0 || inst.result == spell::SpellResult::Miss {
+            self.log_spell_impact(event.unit_id, inst, event.target_id);
+        }
+
+        if self.config.judgement_of_wisdom {
+            let mut chance = 50.0;
+            if inst.spell.is_channeled {
+                chance/= inst.spell.ticks as f64;
+            }
+            let roll = self.rng.gen_range(0.0..=100.0);
+            if roll < chance {
+                let mut ev = Event::new(EventType::ManaGain);
+                ev.unit_id = event.unit_id;
+                ev.mana = 59.0;
+                self.on_mana_gain(&mut ev);
+            }
+        }
 
         let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
         self.handle_events(events);
@@ -551,7 +581,7 @@ impl Sim {
 
         self.units.get_mut(&event.unit_id).unwrap().mod_mana(event.mana, self.t);
 
-        self.log_value(log::LogType::Mana, format!("Mana"), event.unit_id, event.mana);
+        self.log_value(log::LogType::Mana, String::from("Mana"), event.unit_id, event.mana);
     }
 
     fn on_mana_regen(&mut self, event: &mut Event) {
@@ -560,7 +590,7 @@ impl Sim {
 
         if mana > 0.0 {
             unit.mod_mana(mana, self.t);
-            self.log_value(log::LogType::Mana, format!("Mana regen"), event.unit_id, mana);
+            self.log_value(log::LogType::Mana, String::from("Mana regen"), event.unit_id, mana);
         }
 
         self.push_mana_regen(event.unit_id);
@@ -611,12 +641,10 @@ impl Sim {
                 } else {
                     self.log(log::LogType::AuraGain, format!("a[{}] -> t[{}]", a.name, self.target(event.target_id).name), event.unit_id);
                 }
+            } else if a.max_stacks > 1 {
+                self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, stacks), event.unit_id);
             } else {
-                if a.max_stacks > 1 {
-                    self.log(log::LogType::AuraGain, format!("a[{}] ({})", a.name, stacks), event.unit_id);
-                } else {
-                    self.log(log::LogType::AuraGain, format!("a[{}]", a.name), event.unit_id);
-                }
+                self.log(log::LogType::AuraGain, format!("a[{}]", a.name), event.unit_id);
             }
         }
     }
@@ -636,6 +664,10 @@ impl Sim {
         if auras.has(aura.id, aura.owner_id) {
             auras.remove(aura.id, aura.owner_id);
             self.remove_aura_expiration(event.unit_id, aura.id, event.target_id);
+
+            if aura.id == spell::IGNITE && event.target_id > 0 {
+                self.targets.get_mut(&event.target_id).unwrap().reset_ignite();
+            }
 
             let events = self.units.get_mut(&event.unit_id).unwrap().on_event(event);
             self.handle_events(events);
@@ -677,7 +709,9 @@ impl Sim {
         self.handle_events(events);
 
         let c = event.cooldown.as_ref().unwrap();
-        self.log(log::LogType::CooldownGain, format!("c[{}]", c.name), event.unit_id);
+        if !c.is_hidden {
+            self.log(log::LogType::CooldownGain, format!("c[{}]", c.name), event.unit_id);
+        }
     }
 
     fn on_cooldown_expire(&mut self, event: &mut Event) {
@@ -692,7 +726,9 @@ impl Sim {
             cooldowns.remove(cooldown.id);
             self.remove_cooldown_expiration(event.unit_id, cooldown.id);
 
-            self.log(log::LogType::CooldownExpire, format!("c[{}]", cooldown.name), event.unit_id);
+            if !cooldown.is_hidden {
+                self.log(log::LogType::CooldownExpire, format!("c[{}]", cooldown.name), event.unit_id);
+            }
         }
     }
 
@@ -722,8 +758,76 @@ impl Sim {
     }
 
     fn apply_dot(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) {
+        // Special case for ignite, ooh wee
         if spell.id == spell::IGNITE {
-            // TODO
+            // Remove all ignite ticks on the target and save how many ticks were removed
+            let mut remaining_ticks = self.queue.len();
+            self.queue.retain(|ev| ev.event_type != EventType::SpellImpact || ev.target_id != target_id || ev.spell_instance.as_ref().is_none() || ev.spell_instance.as_ref().unwrap().spell.id != spell.id);
+            remaining_ticks-= self.queue.len();
+
+            if self.target(target_id).ignite_stacks == 0 {
+                // Because we have flagged ignite as fixed_dmg, dmg modifiers are not applied to the dmg yet
+                // Instead we want to save those modifiers and apply them to each tick
+                // This is because ignite snapshots the dmg modifers on the first stack application
+                // Tick timing is 2s from initial crit unless the refreshing crit occurs after what would be the last tick.
+                // In that case a new timer is established by the saving crit.
+                let mut modifier = 1.0;
+                modifier*= self.spell_buff_dmg_multiplier(unit_id, spell);
+                modifier*= self.spell_debuff_dmg_multiplier(unit_id, spell, target_id);
+                let target = self.targets.get_mut(&target_id).unwrap();
+                target.ignite_modifier = modifier;
+                target.ignite_stacks = 1;
+                target.ignite_dmg = spell.min_dmg;
+                target.ignite_owner_id = unit_id;
+                target.ignite_t = self.t;
+            } else {
+                let target = self.targets.get_mut(&target_id).unwrap();
+                if target.ignite_stacks < 5 {
+                    target.ignite_stacks+= 1;
+                    target.ignite_dmg+= spell.min_dmg;
+                }
+                // If ignite is refreshed after the last tick, but saved by the 4s window, we reset the ignite timing
+                // If 1 tick remains, we extend the timing by 2 seconds
+                if remaining_ticks == 0 {
+                    target.ignite_t = self.t;
+                } else if remaining_ticks == 1 {
+                    target.ignite_t+= 2.0;
+                }
+            }
+
+
+            let dmg = (self.target(target_id).ignite_dmg * self.target(target_id).ignite_modifier).round();
+            for i in 1..=spell.ticks {
+                let mut instance = spell::SpellInstance::new(spell.clone());
+                let t = self.target(target_id).ignite_t - self.t + spell.t_interval * (i as f64);
+                instance.result = spell::SpellResult::Hit;
+                instance.tick = i;
+                instance.dmg = dmg;
+                instance.resist = self.spell_dmg_resist(unit_id, &instance);
+                instance.dmg-= instance.resist;
+                self.push_event(Event {
+                    event_type: EventType::SpellImpact,
+                    t,
+                    unit_id,
+                    target_id,
+                    spell_instance: Some(instance),
+                    is_main_event: false,
+                    ..Default::default()
+                });
+            }
+
+            // Create an aura for the dot on the target
+            let mut aura = aura::Aura::new(spell.id, spell.name.clone(), (spell.ticks as f64) * spell.t_interval);
+            aura.owner_id = self.target(target_id).ignite_owner_id;
+            aura.max_stacks = 5;
+            aura.show_refresh = true;
+            let mut event = Event::new(EventType::AuraGain);
+            event.unit_id = self.target(target_id).ignite_owner_id;
+            event.target_id = target_id;
+            event.aura = Some(aura);
+            event.t = self.t;
+            event.is_main_event = false;
+            self.on_aura_gain(&mut event);
         }
         else {
             // This is the most common case
@@ -760,25 +864,20 @@ impl Sim {
     }
 
     fn roll_spell_instance(&mut self, unit_id: i32, instance: &mut spell::SpellInstance, target_id: i32) {
-        if instance.spell.max_dmg > 0.0 {
-            instance.result = self.roll_spell_result(unit_id, instance, target_id);
+        instance.result = self.roll_spell_result(unit_id, instance, target_id);
 
-            if instance.result != spell::SpellResult::Miss {
-                instance.dmg = self.roll_spell_dmg(unit_id, &instance.spell, target_id);
-            }
+        if instance.spell.max_dmg > 0.0 && instance.result != spell::SpellResult::Miss {
+            instance.dmg = self.roll_spell_dmg(unit_id, &instance.spell, target_id);
 
             if !instance.spell.is_dot {
                 instance.dmg*= self.spell_debuff_dmg_multiplier(unit_id, &instance.spell, target_id);
             }
-
             if instance.result == spell::SpellResult::Crit {
                 instance.dmg*= self.spell_crit_dmg_multiplier(unit_id, &instance.spell, target_id);
             }
 
-            if !instance.spell.is_fixed_dmg {
-                instance.resist = self.spell_dmg_resist(unit_id, instance);
-                instance.dmg-= instance.resist;
-            }
+            instance.resist = self.spell_dmg_resist(unit_id, instance);
+            instance.dmg-= instance.resist;
 
             instance.dmg = instance.dmg.round();
         }
@@ -820,7 +919,9 @@ impl Sim {
     fn spell_crit_chance(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
         let mut crit: f64 = self.unit(unit_id).spell_crit_chance(spell);
 
-        // TODO: Check debuffs
+        if self.target(target_id).auras.has_any(aura::WINTERS_CHILL) && spell.school == common::School::Frost {
+            crit+= 2.0 * self.target(target_id).auras.stacks(aura::WINTERS_CHILL, 0) as f64;
+        }
 
         crit = crit.min(100.0);
 
@@ -844,10 +945,6 @@ impl Sim {
             dmg = (spell.min_dmg + spell.max_dmg) / 2.0;
         } else {
             dmg = self.rng.gen_range(spell.min_dmg..=spell.max_dmg);
-        }
-
-        if spell.is_fixed_dmg {
-            return dmg;
         }
 
         if spell.coeff > 0.0 {
@@ -874,6 +971,12 @@ impl Sim {
 
         if auras.has_any(aura::FIRE_VULNERABILITY) {
             dmg*= 1.0 + 0.03 * auras.stacks(aura::FIRE_VULNERABILITY, 0) as f64;
+        }
+
+        if self.config.curse_of_elements && (spell.school == common::School::Fire || spell.school == common::School::Frost) {
+            dmg*= 1.1;
+        } else if self.config.curse_of_shadows && (spell.school == common::School::Arcane || spell.school == common::School::Shadow) {
+            dmg*= 1.1;
         }
 
         dmg
@@ -1025,7 +1128,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
-            value: value,
+            value,
             value2: 0.0,
             spell_result: spell::SpellResult::None,
         });
