@@ -1,3 +1,4 @@
+use crate::apl::Apl;
 use crate::common::Race;
 use crate::stats::Stats;
 use serde::{Serialize, Deserialize};
@@ -10,6 +11,7 @@ pub struct PlayerConfig {
     pub level: i32,
     pub talents: Vec<u8>,
     pub items: Vec<i32>,
+    pub apl: Apl,
 
     // Buffs
     pub mage_armor: bool,

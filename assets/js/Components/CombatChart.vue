@@ -6,6 +6,7 @@ import {
   PointElement,
   LineElement,
   Title,
+  Tooltip,
   Legend
 } from "chart.js";
 import { Line } from "vue-chartjs";
@@ -17,6 +18,7 @@ Chart.register(
   PointElement,
   LineElement,
   Title,
+  Tooltip,
   Legend
 );
 
@@ -33,7 +35,7 @@ const makeChart = () => {
         maintainAspectRatio: false,
         elements: {
             point: {
-                radius: 0,
+                radius: 4,
             },
         },
         scales: {
@@ -71,18 +73,18 @@ const makeChart = () => {
                 },
             },
         },
-        // plugins: {
-        //     tooltip: {
-        //         callbacks: {
-        //             title: (context) => {
-        //                 return `Time: ${context[0].label} seconds`;
-        //             },
-        //             label: (context) => {
-        //                 return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}`;
-        //             }
-        //         }
-        //     }
-        // }
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    title: (context) => {
+                        return `Time: ${context[0].label} seconds`;
+                    },
+                    label: (context) => {
+                        return `${context.dataset.label}: ${context.parsed.y.toFixed()} dps`;
+                    }
+                }
+            }
+        }
     };
 
     let mana_smooth = false;
@@ -111,13 +113,29 @@ const makeChart = () => {
     //     label: "Total dps",
     // });
 
+    // Ignite
+    d = [];
+    d.push({x: 0, y: 0});
+    for (let entry of props.result.log) {
+        if (entry.log_type == "SpellImpact" && entry.text.indexOf("s[Ignite]") === 0)
+            d.push({x: entry.t, y: entry.ignite_dps});
+    }
+    d.push({x: props.result.t, y: props.result.ignite_dps});
+    data.datasets.push({
+        data: d,
+        borderColor: "#d00",
+        backgroundColor: "#d00",
+        yAxisID: "dps",
+        label: "Ignite",
+    });
+
     // DPS
     let colors = [
-        "#d00",
-        "#dd0",
-        "#80a",
+        "#03f",
         "#0a0",
         "#fa0",
+        "#80a",
+        "#dd0",
         "#0cc",
         "#eee",
     ];

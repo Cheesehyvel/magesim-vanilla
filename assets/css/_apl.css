@@ -1,6 +1,10 @@
 .apl {
     padding: 20px 10px 0;
 
+    > .collapse-all {
+        margin-bottom: 10px;
+    }
+
     .dragger {
         position: fixed;
         width: 50px;
@@ -96,7 +100,7 @@
 
                 &.toggle {
                     float: left;
-                    padding-right: 80px;
+                    padding-right: 150px;
                     margin-left: 0;
                 }
 

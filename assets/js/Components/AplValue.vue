@@ -34,7 +34,6 @@ const typeOptions = [
     { value: apl.value_type.SIM_TIME, title: "Current time", provides: "vfloat" },
     { value: apl.value_type.SIM_TIME_PERCENT, title: "Current time %", provides: "vfloat" },
     { value: apl.value_type.SIM_DURATION, title: "Remaining duration", provides: "vfloat" },
-    { value: apl.value_type.SIM_DURATION_PERCENT, title: "Remaining duration %", provides: "vfloat" },
     { value: apl.value_type.SIM_DISTANCE, title: "Target distance", provides: "vfloat" },
     { value: apl.value_type.SIM_REACTION_TIME, title: "Reaction time", provides: "vfloat" },
     { value: apl.value_type.SIM_TARGET_LEVEL, title: "Target level", provides: "vfloat" },
@@ -51,7 +50,7 @@ const expectedTypeOptions = computed(() => {
     });
 });
 const type = computed(() => {
-    return typeOptions.find(t => t.value == props.modelValue.type);
+    return typeOptions.find(t => t.value == props.modelValue.value_type);
 });
 
 const talentNames = talentTree.trees.reduce((a, b) => { return [...a, ...b.talents.rows.flat()]; }, []).map(t => t.name);
@@ -99,34 +98,34 @@ const talentOptions = computed(() => {
 });
 const spellOptions = computed(() => {
     let options = [
-        { value: "", title: "None" },
-        { value: "arcane_missiles", title: "Arcane Missiles" },
-        { value: "arcane_power", title: "Arcane Power", talent: "arcane_power" },
-        { value: "berserking", title: "Berserking", race: "Troll" },
-        { value: "cold_snap", title: "Cold Snap", talent: "cold_snap" },
-        { value: "combustion", title: "Combustion", talent: "combustion" },
-        { value: "evocation", title: "Evocation" },
-        { value: "fireball", title: "Fireball" },
-        { value: "fire_blast", title: "Fire Blast" },
-        { value: "frostbolt", title: "Frostbolt" },
-        { value: "presence_of_mind", title: "Presence of Mind", talent: "presence_of_mind" },
-        { value: "pyroblast", title: "Pyroblast", talent: "pyroblast" },
-        { value: "scorch", title: "Scorch" },
-        { value: "mana_gem", title: "Mana Gem" },
-        { value: "mana_potion", title: "Mana Potion" },
-        { value: "celestial_orb", title: "off_hand", item: items.ids.CELESTIAL_ORB },
-        { value: "robe_archmage", title: "chest", item: items.ids.ROBE_ARCHMAGE },
-        { value: "burst_of_knowledge", title: "trinket", item: items.ids.TRINKET_BURST_OF_KNOWLEDGE },
-        { value: "chromatic_infusion", title: "trinket", item: items.ids.TRINKET_DRACONIC_EMBLEM },
-        { value: "essence_of_sapphiron", title: "trinket", item: items.ids.TRINKET_RESTRAINED_ESSENCE },
-        { value: "obsidian_insight", title: "trinket", item: items.ids.TRINKET_EYE_OF_MOAM },
-        { value: "chaos_fire", title: "trinket", item: items.ids.TRINKET_FIRE_RUBY },
-        { value: "arcane_potency", title: "trinket", item: items.ids.TRINKET_HAZZARAH },
-        { value: "mind_quickening", title: "trinket", item: items.ids.TRINKET_MQG },
-        { value: "nat_pagle", title: "trinket", item: items.ids.TRINKET_NAT_PAGLE },
-        { value: "ephemeral_power", title: "trinket", item: items.ids.TRINKET_TOEP },
-        { value: "mana_infusion", title: "trinket", item: items.ids.TRINKET_WARMTH_OF_FORGIVENESS },
-        { value: "unstable_power", title: "trinket", item: items.ids.TRINKET_ZHC },
+        { value: "None", title: "None" },
+        { value: "ArcaneMissiles", title: "Arcane Missiles" },
+        { value: "ArcanePower", title: "Arcane Power", talent: "arcane_power" },
+        { value: "Berserking", title: "Berserking", race: "Troll" },
+        { value: "ColdSnap", title: "Cold Snap", talent: "cold_snap" },
+        { value: "Combustion", title: "Combustion", talent: "combustion" },
+        { value: "Evocation", title: "Evocation" },
+        { value: "Fireball", title: "Fireball" },
+        { value: "FireBlast", title: "Fire Blast" },
+        { value: "Frostbolt", title: "Frostbolt" },
+        { value: "PresenceOfMind", title: "Presence of Mind", talent: "presence_of_mind" },
+        { value: "Pyroblast", title: "Pyroblast", talent: "pyroblast" },
+        { value: "Scorch", title: "Scorch" },
+        { value: "ManaGem", title: "Mana Gem" },
+        { value: "ManaPotion", title: "Mana Potion" },
+        { value: "CelestialOrb", title: "off_hand", item: items.ids.CELESTIAL_ORB },
+        { value: "RobeArchmage", title: "chest", item: items.ids.ROBE_ARCHMAGE },
+        { value: "BurstOfKnowledge", title: "trinket", item: items.ids.TRINKET_BURST_OF_KNOWLEDGE },
+        { value: "ChromaticInfusion", title: "trinket", item: items.ids.TRINKET_DRACONIC_EMBLEM },
+        { value: "EssenceOfSapphiron", title: "trinket", item: items.ids.TRINKET_RESTRAINED_ESSENCE },
+        { value: "ObsidianInsight", title: "trinket", item: items.ids.TRINKET_EYE_OF_MOAM },
+        { value: "ChaosFire", title: "trinket", item: items.ids.TRINKET_FIRE_RUBY },
+        { value: "ArcanePotency", title: "trinket", item: items.ids.TRINKET_HAZZARAH },
+        { value: "MindQuickening", title: "trinket", item: items.ids.TRINKET_MQG },
+        { value: "NatPagle", title: "trinket", item: items.ids.TRINKET_NAT_PAGLE },
+        { value: "EphemeralPower", title: "trinket", item: items.ids.TRINKET_TOEP },
+        { value: "ManaInfusion", title: "trinket", item: items.ids.TRINKET_WARMTH_OF_FORGIVENESS },
+        { value: "UnstablePower", title: "trinket", item: items.ids.TRINKET_ZHC },
     ];
     return filterOptions(options);
 });
@@ -220,7 +219,7 @@ const changed = () => {
 <template>
     <div class="apl-value">
         <select-simple
-            v-model="props.modelValue.type"
+            v-model="props.modelValue.value_type"
             :options="expectedTypeOptions"
             :fill-missing="true"
             @input="changed"

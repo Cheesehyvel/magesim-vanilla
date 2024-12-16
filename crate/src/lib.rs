@@ -13,6 +13,7 @@ mod cooldown;
 mod log;
 mod target;
 mod unit;
+mod apl;
 mod mage;
 mod event;
 mod sim;

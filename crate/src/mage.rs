@@ -1,4 +1,6 @@
+use crate::apl;
 use crate::aura;
+use crate::common;
 use crate::common::School;
 use crate::config::Config;
 use crate::config::PlayerConfig;
@@ -10,10 +12,13 @@ use crate::macros::console_log;
 use crate::sim::Sim;
 use crate::spell;
 use crate::stats::Stats;
+use crate::target::Target;
 use crate::unit::Unit;
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+use std::collections::VecDeque;
 
 const TALENT_ARCANE_SUBLETY: usize = 0;
 const TALENT_ARCANE_FOCUS: usize = 1;
@@ -80,6 +85,7 @@ pub struct Mage {
     pub auras: aura::Auras,
     pub cooldowns: cooldown::Cooldowns,
     pub rng: ChaCha8Rng,
+    _apl_sequence: VecDeque<Event>,
     _combustion: i32,
     _mana_gems: i32,
 }
@@ -99,6 +105,7 @@ impl Mage {
             auras: aura::Auras::default(),
             cooldowns: cooldown::Cooldowns::default(),
             rng: ChaCha8Rng::from_entropy(),
+            _apl_sequence: VecDeque::new(),
             _combustion: 0,
             _mana_gems: 0,
         }
@@ -112,12 +119,408 @@ impl Mage {
         self.player_config().talents[index]
     }
 
+    fn is_horde(&self) -> bool {
+        self.player_config().race == common::Race::Undead || self.player_config().race == common::Race::Troll
+    }
+
+    fn is_alliance(&self) -> bool {
+        !self.is_horde()
+    }
+
     fn has_set(&self, set: i32, pc: i32) -> bool {
         self.player_config().items.iter().filter(|&x| *x == set).count() >= pc as usize
     }
 
     fn has_item(&self, item_id: i32) -> bool {
         self.player_config().items.contains(&item_id)
+    }
+
+    fn apl_next_event(&mut self, t: f64, targets: &HashMap<i32, Target>) -> Event {
+        // Why unsafe?
+        // If an action is a sequence, we need save that sequence (or a state of some kind)
+        // so we can pop it next time this fn is called.
+        // I dont know how to do that wihout unsafe.
+        // Rust does not allow mutation of "self" inside of a field loop
+        unsafe {
+            let sequence = &raw mut self._apl_sequence;
+
+            // Pending action sequence
+            if (*sequence).len() > 0 {
+                return (*sequence).pop_front().unwrap();
+            }
+
+            for apl_item in self.player_config().apl.items.iter() {
+                if self.apl_check_condition(&apl_item.condition, t, targets) {
+                    let mut event = self.apl_action(&apl_item.action, t, targets);
+                    if event.events.len() > 0 {
+                        while let Some(ev) = event.events.pop_front() {
+                            (*sequence).push_back(ev);
+                        }
+                        return (*sequence).pop_front().unwrap();
+                    } else {
+                        return event;
+                    }
+                }
+            }
+        }
+
+        self.wait_event(0.1, String::from("APL: No available action"))
+    }
+
+    fn apl_action(&self, apl_action: &apl::AplAction, t: f64, targets: &HashMap<i32, Target>) -> Event {
+         match apl_action.action_type {
+            apl::AplActionType::Sequence => {
+                let mut event = Event::new(EventType::Sequence);
+                for action in apl_action.sequence.iter() {
+                    event.events.push_back(self.apl_action(&action, t, targets));
+                }
+                event
+            }
+            apl::AplActionType::Spell => {
+                let mut event = Event::new(EventType::CastStart);
+                match apl_action.key {
+                    apl::AplActionKey::ArcaneMissiles => {
+                        event.spell = Some(self.this_spell(spell::arcane_missiles()));
+                    }
+                    apl::AplActionKey::ArcanePotency => {
+                        if !self.cooldowns.has(spell::ARCANE_POTENCY) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_HAZZARAH) {
+                            event.spell = Some(self.this_spell(spell::arcane_potency()));
+                        }
+                    }
+                    apl::AplActionKey::ArcanePower => {
+                        if !self.cooldowns.has(spell::ARCANE_POWER) && self.talent(TALENT_ARCANE_POWER) > 0 {
+                            event.spell = Some(self.this_spell(spell::arcane_power()));
+                        }
+                    }
+                    apl::AplActionKey::Berserking => {
+                        if !self.cooldowns.has(spell::BERSERKING) && self.player_config().race == common::Race::Troll {
+                            event.spell = Some(self.this_spell(spell::berserking()));
+                        }
+                    }
+                    apl::AplActionKey::BurstOfKnowledge => {
+                        if !self.cooldowns.has(spell::BURST_OF_KNOWLEDGE) && self.has_item(item::TRINKET_BURST_OF_KNOWLEDGE) {
+                            event.spell = Some(self.this_spell(spell::burst_of_knowledge()));
+                        }
+                    }
+                    apl::AplActionKey::CelestialOrb => {
+                        if !self.cooldowns.has(spell::CELESTIAL_ORB) && self.has_item(item::CELESTIAL_ORB) {
+                            event.spell = Some(self.this_spell(spell::celestial_orb()));
+                        }
+                    }
+                    apl::AplActionKey::ChaosFire => {
+                        if !self.cooldowns.has(spell::CHAOS_FIRE) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_FIRE_RUBY) {
+                            event.spell = Some(self.this_spell(spell::chaos_fire()));
+                        }
+                    }
+                    apl::AplActionKey::ChromaticInfusion => {
+                        if !self.cooldowns.has(spell::CHROMATIC_INFUSION) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_DRACONIC_EMBLEM) {
+                            event.spell = Some(self.this_spell(spell::chromatic_infusion()));
+                        }
+                    }
+                    apl::AplActionKey::ColdSnap => {
+                        if !self.cooldowns.has(spell::COLD_SNAP) && self.talent(TALENT_COLD_SNAP) > 0 {
+                            event.spell = Some(self.this_spell(spell::cold_snap()));
+                        }
+                    }
+                    apl::AplActionKey::Combustion => {
+                        if !self.cooldowns.has(spell::COMBUSTION) && self.talent(TALENT_COMBUSTION) > 0 {
+                            event.spell = Some(self.this_spell(spell::combustion()));
+                        }
+                    }
+                    apl::AplActionKey::EphemeralPower => {
+                        if !self.cooldowns.has(spell::EPHEMERAL_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_TOEP) {
+                            event.spell = Some(self.this_spell(spell::ephemeral_power()));
+                        }
+                    }
+                    apl::AplActionKey::EssenceOfSapphiron => {
+                        if !self.cooldowns.has(spell::ESSENCE_OF_SAPPHIRON) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_RESTRAINED_ESSENCE) {
+                            event.spell = Some(self.this_spell(spell::essence_of_sapphiron()));
+                        }
+                    }
+                    apl::AplActionKey::Evocation => {
+                        if !self.cooldowns.has(spell::EVOCATION) {
+                            event.spell = Some(self.this_spell(spell::evocation()));
+                        }
+                    }
+                    apl::AplActionKey::Fireball => {
+                        event.spell = Some(self.this_spell(spell::fireball()));
+                    }
+                    apl::AplActionKey::FireBlast => {
+                        if !self.cooldowns.has(spell::FIRE_BLAST) {
+                            event.spell = Some(self.this_spell(spell::fire_blast()));
+                        }
+                    }
+                    apl::AplActionKey::Frostbolt => {
+                        event.spell = Some(self.this_spell(spell::frostbolt()));
+                    }
+                    apl::AplActionKey::Innervate => {
+                        event.spell = Some(self.this_spell(spell::innervate()));
+                    }
+                    apl::AplActionKey::ManaGem => {
+                        if !self.cooldowns.has(spell::MANA_GEM) {
+                            event.spell = Some(self.this_spell(spell::mana_gem()));
+                        }
+                    }
+                    apl::AplActionKey::ManaInfusion => {
+                        if !self.cooldowns.has(spell::MANA_INFUSION) && self.has_item(item::TRINKET_WARMTH_OF_FORGIVENESS) {
+                            event.spell = Some(self.this_spell(spell::mana_infusion()));
+                        }
+                    }
+                    apl::AplActionKey::ManaPotion => {
+                        if !self.cooldowns.has(spell::MANA_POTION) {
+                            event.spell = Some(self.this_spell(spell::mana_potion()));
+                        }
+                    }
+                    apl::AplActionKey::ManaTide => {
+                        if self.is_horde() {
+                            event.spell = Some(self.this_spell(spell::mana_tide()));
+                        }
+                    }
+                    apl::AplActionKey::MindQuickening => {
+                        if !self.cooldowns.has(spell::MIND_QUICKENING) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_MQG) {
+                            event.spell = Some(self.this_spell(spell::mind_quickening()));
+                        }
+                    }
+                    apl::AplActionKey::NatPagle => {
+                        if !self.cooldowns.has(spell::NAT_PAGLE) && self.has_item(item::TRINKET_NAT_PAGLE) {
+                            event.spell = Some(self.this_spell(spell::nat_pagle()));
+                        }
+                    }
+                    apl::AplActionKey::ObsidianInsight => {
+                        if !self.cooldowns.has(spell::OBSIDIAN_INSIGHT) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_EYE_OF_MOAM) {
+                            event.spell = Some(self.this_spell(spell::obsidian_insight()));
+                        }
+                    }
+                    apl::AplActionKey::PowerInfusion => {
+                        event.spell = Some(self.this_spell(spell::power_infusion()));
+                    }
+                    apl::AplActionKey::PresenceOfMind => {
+                        if !self.cooldowns.has(spell::PRESENCE_OF_MIND) && self.talent(TALENT_PRESENCE_OF_MIND) > 0 {
+                            event.spell = Some(self.this_spell(spell::presence_of_mind()));
+                        }
+                    }
+                    apl::AplActionKey::Pyroblast => {
+                        if self.talent(TALENT_PYROBLAST) > 0 {
+                            event.spell = Some(self.this_spell(spell::pyroblast()));
+                        }
+                    }
+                    apl::AplActionKey::RobeArchmage => {
+                        if !self.cooldowns.has(spell::ROBE_ARCHMAGE) && self.has_item(item::ROBE_ARCHMAGE) {
+                            event.spell = Some(self.this_spell(spell::robe_archmage()));
+                        }
+                    }
+                    apl::AplActionKey::Scorch => {
+                        event.spell = Some(self.this_spell(spell::scorch()));
+                    }
+                    apl::AplActionKey::UnstablePower => {
+                        if !self.cooldowns.has(spell::UNSTABLE_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_ZHC) {
+                            event.spell = Some(self.this_spell(spell::unstable_power()));
+                        }
+                    }
+                    _ => { return Event::new(EventType::None); }
+                }
+                if event.spell.is_none() {
+                    event.event_type = EventType::None;
+                }
+                event
+            }
+            apl::AplActionType::Wait => {
+                let mut event = Event::new(EventType::Wait);
+                event.text = String::from("APL: Wait");
+                event.t = 1.0;
+                event
+            }
+            _ => {
+                Event::new(EventType::None)
+            }
+        }
+    }
+
+    fn apl_check_condition(&self, apl_condition: &apl::AplCondition, t: f64, targets: &HashMap<i32, Target>) -> bool {
+        match apl_condition.condition_type {
+            apl::AplConditionType::And => {
+                for condition in apl_condition.conditions.iter() {
+                    if !self.apl_check_condition(&condition, t, targets) {
+                        return false;
+                    }
+                }
+                true
+            }
+            apl::AplConditionType::Or => {
+                for condition in apl_condition.conditions.iter() {
+                    if self.apl_check_condition(&condition, t, targets) {
+                        return true;
+                    }
+                }
+                false
+            }
+            apl::AplConditionType::Cmp => {
+                if apl_condition.values.len() != 2 {
+                    return false;
+                }
+
+                let a = self.apl_value(&apl_condition.values[0], t, targets);
+                let b = self.apl_value(&apl_condition.values[1], t, targets);
+
+                if apl_condition.op == apl::AplConditionOp::Eq {
+                    return a == b;
+                } else if apl_condition.op == apl::AplConditionOp::Neq {
+                    return a != b;
+                } else if apl_condition.op == apl::AplConditionOp::Gt {
+                    return a > b;
+                } else if apl_condition.op == apl::AplConditionOp::Gte {
+                    return a >= b;
+                } else if apl_condition.op == apl::AplConditionOp::Lt {
+                    return a < b;
+                } else if apl_condition.op == apl::AplConditionOp::Lte {
+                    return a <= b;
+                }
+
+                false
+            }
+            apl::AplConditionType::Not => {
+                if apl_condition.conditions.len() != 1 {
+                    return false;
+                }
+
+                self.apl_check_condition(&apl_condition.conditions[0], t, targets)
+            }
+            apl::AplConditionType::False => {
+                if apl_condition.values.len() != 1 {
+                    return false;
+                }
+                self.apl_value(&apl_condition.values[0], t, targets) == 0.0
+            }
+            apl::AplConditionType::True => {
+                if apl_condition.values.len() != 1 {
+                    return false;
+                }
+                self.apl_value(&apl_condition.values[0], t, targets) == 1.0
+            }
+            _ => {
+                true
+            }
+        }
+    }
+
+    fn apl_value(&self, apl_value: &apl::AplValue, t: f64, targets: &HashMap<i32, Target>) -> f64 {
+        match apl_value.value_type {
+            apl::AplValueType::None => {
+                0.0
+            }
+            apl::AplValueType::Const => {
+                apl_value.vfloat
+            }
+            apl::AplValueType::PlayerMana => {
+                self.current_mana()
+            }
+            apl::AplValueType::PlayerManaPercent => {
+                self.mana_percent()
+            }
+            apl::AplValueType::PlayerManaDeficit => {
+                self.max_mana() - self.current_mana()
+            }
+            apl::AplValueType::PlayerTalentCount => {
+                self.talent(apl_value.vint as usize) as f64
+            }
+            apl::AplValueType::PlayerCooldownExists => {
+                if self.cooldowns.has(apl_value.vint) { 1.0 } else { 0.0 }
+            }
+            apl::AplValueType::PlayerCooldownReact => {
+                // TODO: Reaction time
+                if self.cooldowns.has(apl_value.vint) { 1.0 } else { 0.0 }
+            }
+            apl::AplValueType::PlayerCooldownDuration => {
+                if self.cooldowns.has(apl_value.vint) {
+                    self.cooldowns.cooldowns.get(&apl_value.vint).unwrap().t_expires - t
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::PlayerAuraExists => {
+                if self.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+            }
+            apl::AplValueType::PlayerAuraReact => {
+                // TODO: Reaction time
+                if self.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+            }
+            apl::AplValueType::PlayerAuraStacks => {
+                self.auras.stacks(apl_value.vint, self.id()) as f64
+            }
+            apl::AplValueType::PlayerAuraDuration => {
+                if self.auras.has(apl_value.vint, self.id()) {
+                    self.auras.get_aura(apl_value.vint, self.id()).unwrap().t_expires - t
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::TargetAuraExists => {
+                if let Some(target) = targets.get(&1) {
+                    if target.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::TargetAuraReact => {
+                // TODO: Reaction time
+                if let Some(target) = targets.get(&1) {
+                    if target.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::TargetAuraStacks => {
+                if let Some(target) = targets.get(&1) {
+                    target.auras.stacks(apl_value.vint, self.id()) as f64
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::TargetAuraDuration => {
+                if let Some(target) = targets.get(&1) {
+                    if target.auras.has(apl_value.vint, self.id()) {
+                        target.auras.get_aura(apl_value.vint, self.id()).unwrap().t_expires - t
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                }
+            }
+            apl::AplValueType::SpellTravelTime => {
+                0.0 // TODO: Spell
+            }
+            apl::AplValueType::SpellCastTime => {
+                0.0 // TODO: Spell
+            }
+            apl::AplValueType::SpellTravelCastTime => {
+                0.0 // TODO: Spell
+            }
+            apl::AplValueType::SpellManaCost => {
+                0.0 // TODO: Spell
+            }
+            apl::AplValueType::SpellCanCast => {
+                0.0 // TODO: Spell
+            }
+            apl::AplValueType::SimTime => {
+                t
+            }
+            apl::AplValueType::SimTimePercent => {
+                t / self.config.as_ref().unwrap().duration * 100.0
+            }
+            apl::AplValueType::SimDuration => {
+                self.config.as_ref().unwrap().duration
+            }
+            apl::AplValueType::SimDistance => {
+                self.config.as_ref().unwrap().distance as f64
+            }
+            apl::AplValueType::SimReactionTime => {
+                self.config.as_ref().unwrap().reaction_time
+            }
+            apl::AplValueType::SimTargetLevel => {
+                self.config.as_ref().unwrap().target_level as f64
+            }
+        }
     }
 }
 
@@ -279,7 +682,6 @@ impl Unit for Mage {
         if spell.school == School::Arcane && self.talent(TALENT_ARCANE_FOCUS) > 0 {
             hit+= 2.0 * (self.talent(TALENT_ARCANE_FOCUS) as f64);
         }
-
         if (spell.school == School::Fire || spell.school == School::Frost) && self.talent(TALENT_ELEMENTAL_PRECISION) > 0 {
             hit+= 2.0 * (self.talent(TALENT_ELEMENTAL_PRECISION) as f64);
         }
@@ -297,19 +699,15 @@ impl Unit for Mage {
         if self.talent(TALENT_INCINERATE) > 0 && (spell.id == spell::FIRE_BLAST || spell.id == spell::SCORCH) {
             crit+= 2.0 * self.talent(TALENT_INCINERATE) as f64;
         }
-
         if self.talent(TALENT_ARCANE_INSTABILITY) > 0 {
             crit+= self.talent(TALENT_ARCANE_INSTABILITY) as f64;
         }
-
         if self.talent(TALENT_CRITICAL_MASS) > 0 && spell.school == School::Fire {
             crit+= 2.0 * self.talent(TALENT_CRITICAL_MASS) as f64;
         }
-
         if self.auras.has_any(aura::COMBUSTION) && spell.school == School::Fire {
             crit+= 10.0 * self.auras.stacks(aura::COMBUSTION, self.id) as f64;
         }
-
         if self.auras.has_any(aura::ARCANE_POTENCY) && spell.school == School::Arcane {
             crit+= 5.0;
         }
@@ -323,7 +721,6 @@ impl Unit for Mage {
         if spell.school == School::Frost && self.talent(TALENT_ICE_SHARDS) > 0 {
             multi+= self.talent(TALENT_ICE_SHARDS) as f64 * 0.2;
         }
-
         if self.auras.has_any(aura::ARCANE_POTENCY) && spell.school == School::Arcane {
             multi+= 0.5;
         }
@@ -425,31 +822,6 @@ impl Unit for Mage {
 
     fn cooldowns(&mut self) -> &mut cooldown::Cooldowns {
         &mut self.cooldowns
-    }
-
-    fn next_event(&mut self, t: f64, num_targets: i32) -> Event {
-        let mut event = Event::new(EventType::None);
-
-        // GCD
-        if t < self.t_gcd {
-            event.event_type = EventType::Wait;
-            event.t = self.t_gcd - t;
-            event.text = String::from("GCD");
-            return event;
-        } 
-
-        // TODO: Rotation
-        event.event_type = EventType::CastStart;
-        event.target_id = 1;
-        if t < 5.0 {
-            event.spell = Some(self.this_spell(spell::scorch()));
-        } else if !self.cooldowns.has(spell::FIRE_BLAST) {
-            event.spell = Some(self.this_spell(spell::fire_blast()));
-        } else {
-            event.spell = Some(self.this_spell(spell::fireball()));
-        }
-
-        event
     }
 
     fn on_event(&mut self, event: &Event) -> Vec<Event> {
@@ -731,4 +1103,29 @@ impl Unit for Mage {
         events
     }
 
+    fn next_event(&mut self, t: f64, targets: &HashMap<i32, Target>) -> Event {
+        // GCD
+        if t < self.t_gcd {
+            let mut event = Event::new(EventType::None);
+            event.event_type = EventType::Wait;
+            event.t = self.t_gcd - t;
+            event.text = String::from("GCD");
+            return event;
+        }
+
+        self.apl_next_event(t, targets)
+
+        // let mut event = Event::new(EventType::None);
+        // event.event_type = EventType::CastStart;
+        // event.target_id = 1;
+        // if t < 5.0 {
+        //     event.spell = Some(self.this_spell(spell::scorch()));
+        // } else if !self.cooldowns.has(spell::FIRE_BLAST) {
+        //     event.spell = Some(self.this_spell(spell::fire_blast()));
+        // } else {
+        //     event.spell = Some(self.this_spell(spell::fireball()));
+        // }
+
+        // event
+    }
 }

@@ -2,6 +2,7 @@ use crate::aura;
 use crate::cooldown;
 use crate::spell;
 use crate::unit::Unit;
+use std::collections::VecDeque;
 
 #[derive(Default, PartialEq, Eq)]
 pub enum EventType {
@@ -22,6 +23,7 @@ pub enum EventType {
     UnitDespawn,
     Wait,
     Idle,
+    Sequence,
 }
 
 #[derive(Default)]
@@ -38,6 +40,7 @@ pub struct Event {
     pub cooldown: Option<cooldown::Cooldown>,
     pub is_main_event: bool,
     pub is_quiet: bool,
+    pub events: VecDeque<Event>,
 }
 
 impl Event {
@@ -55,6 +58,7 @@ impl Event {
             cooldown: None,
             is_main_event: true,
             is_quiet: false,
+            events: VecDeque::new(),
         }
     }
 }

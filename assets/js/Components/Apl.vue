@@ -10,7 +10,7 @@ const emits = defineEmits(["update:modelValue"]);
 /*
  * Collapse
  */
-const collapsed = ref([props.modelValue.items.map(item => item.id)]);
+const collapsed = ref([]);
 const isCollapsed = (id) => {
     return collapsed.value.includes(id);
 };
@@ -53,12 +53,16 @@ const statusToggle = (item) => {
 const itemTitle = (item) => {
     let arr = [];
 
-    let action = apl.actions().find(a => a.type == item.action.type && a.key == item.action.key);
-    if (action)
+    let action = apl.actions().find(a => a.type == item.action.action_type && a.key == item.action.key);
+    if (action) {
         arr.push(action.title);
+    }
+
+    if (item.action.action_type == apl.action_type.SEQUENCE)
+        arr.push(item.action.sequence.length+" actions");
 
     let numCond = (cond) => {
-        if (cond.type == apl.condition_type.NONE)
+        if (cond.condition_type == apl.condition_type.NONE)
             return 0;
         let n = 1;
         for (let c of cond.conditions)
@@ -153,6 +157,10 @@ onUnmounted(() => {
 
 <template>
     <div class="apl" ref="el">
+        <button class="btn btn-secondary small collapse-all" @click="collapseAll">
+            <template v-if="collapsed.length == 0">Collapse all</template>
+            <template v-else>Expand all</template>
+        </button>
         <div class="apl-items" :class="{dragend: isDragEnd}">
             <div
                 class="apl-item"
@@ -162,18 +170,32 @@ onUnmounted(() => {
             >
                 <div class="header">
                     <button class="toggle" @click="collapseToggle(item.id)">
-                        <micon icon="add" v-if="isCollapsed(item.id)" />
-                        <micon icon="remove" v-else />
+                        <span v-if="isCollapsed(item.id)">
+                            <micon icon="add" />
+                            <tooltip>Expand</tooltip>
+                        </span>
+                        <span v-else>
+                            <micon icon="remove" />
+                            <tooltip>Collapse</tooltip>
+                        </span>
                     </button>
                     <button class="copy" @click="copyItem(item)">
                         <micon icon="content_copy" />
+                        <tooltip>Clone</tooltip>
                     </button>
                     <button class="status" @click="statusToggle(item)">
-                        <micon icon="visibility" v-if="item.status" />
-                        <micon icon="visibility_off" v-else />
+                        <template v-if="item.status">
+                            <micon icon="visibility" />
+                            <tooltip>Disable</tooltip>
+                        </template>
+                        <template v-else>
+                            <micon icon="visibility_off" />
+                            <tooltip>Enable</tooltip>
+                        </template>
                     </button>
                     <button class="delete" @click="deleteItem(item.id)">
                         <micon icon="delete" />
+                        <tooltip>Delete</tooltip>
                     </button>
                 </div>
 

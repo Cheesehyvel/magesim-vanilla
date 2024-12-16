@@ -54,21 +54,21 @@ const onTypeInput = (type) => {
 };
 
 const expectValue = computed(() => {
-    if (props.modelValue.type == apl.condition_type.CMP)
+    if (props.modelValue.condition_type == apl.condition_type.CMP)
         return "vfloat";
-    if (props.modelValue.type == apl.condition_type.TRUE || props.modelValue.type == apl.condition_type.FALSE)
+    if (props.modelValue.condition_type == apl.condition_type.TRUE || props.modelValue.condition_type == apl.condition_type.FALSE)
         return "bool";
     return null;
 });
 const hasOp = computed(() => {
-    return props.modelValue.type == apl.condition_type.CMP;
+    return props.modelValue.condition_type == apl.condition_type.CMP;
 });
 
 /*
  * Create / delete
  */
 const canCreateCondition = computed(() => {
-    return props.modelValue.type == apl.condition_type.AND || props.modelValue.type == apl.condition_type.OR;
+    return props.modelValue.condition_type == apl.condition_type.AND || props.modelValue.condition_type == apl.condition_type.OR;
 });
 const createCondition = () => {
     props.modelValue.conditions.push(apl.condition());
@@ -91,7 +91,7 @@ const changed = () => {
     <div class="apl-condition">
         <div class="values" :class="['values-'+props.modelValue.values.length]">
             <select-simple
-                v-model="props.modelValue.type"
+                v-model="props.modelValue.condition_type"
                 :options="typeOptions"
                 @input="onTypeInput"
             />

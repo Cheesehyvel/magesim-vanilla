@@ -380,6 +380,7 @@ const loadRaids = () => {
             delete raid.config.pre_cast;
             delete raid.config._sync_buffs;
             for (let player of raid.players) {
+                delete player.apl;
                 player.talents.splice(49);
                 if (player.hasOwnProperty("extra_stats")) {
                     player.bonus_stats = player.extra_stats;

@@ -1,15 +1,15 @@
 use crate::aura;
 use crate::common;
-use crate::cooldown;
 use crate::config::Config;
-use crate::spell;
+use crate::cooldown;
 use crate::event::Event;
 use crate::event::EventType;
 use crate::log;
+use crate::macros::console_log;
+use crate::mage::Mage;
+use crate::spell;
 use crate::target::Target;
 use crate::unit::Unit;
-use crate::mage::Mage;
-use crate::macros::console_log;
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 use serde::{Serialize, Deserialize};
@@ -329,7 +329,7 @@ impl Sim {
     fn next_event(&mut self, unit_id: i32) {
         self.log(log::LogType::Debug, "Next event".to_string(), unit_id);
 
-        let mut event = self.units.get_mut(&unit_id).unwrap().next_event(self.t, self.config.targets);
+        let mut event = self.units.get_mut(&unit_id).unwrap().next_event(self.t, &self.targets);
         event.unit_id = unit_id;
         self.handle_event(&mut event);
     }
@@ -1112,6 +1112,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
+            ignite_dps: self.result.ignite_dmg as f64 / self.t,
             value: 0.0,
             value2: 0.0,
             spell_result: spell::SpellResult::None,
@@ -1128,6 +1129,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
+            ignite_dps: self.result.ignite_dmg as f64 / self.t,
             value,
             value2: 0.0,
             spell_result: spell::SpellResult::None,
@@ -1144,6 +1146,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
+            ignite_dps: self.result.ignite_dmg as f64 / self.t,
             value: instance.dmg,
             value2: instance.resist,
             spell_result: instance.result,

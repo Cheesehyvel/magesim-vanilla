@@ -51,15 +51,15 @@ const actionOptions = computed(() => {
     return filterOptions(options);
 });
 const currentAction = computed(() => {
-    let action = actionOptions.value.find(a => a.type == props.modelValue.type && a.key == props.modelValue.key);
-    return action ? action.value : "none";
+    let opt = actionOptions.value.find(a => a.type == props.modelValue.action_type && a.key == props.modelValue.key);
+    return opt ? opt.value : "none";
 });
 const changeAction = (value) => {
-    let action = actionOptions.value.find(a => a.value == value);
-    props.modelValue.type = action.type;
-    props.modelValue.key = action.key;
+    let opt = actionOptions.value.find(a => a.value == value);
+    props.modelValue.action_type = opt.type;
+    props.modelValue.key = opt.key;
 
-    if (action.type == apl.action_type.SEQUENCE)
+    if (opt.type == apl.action_type.SEQUENCE)
         props.modelValue.sequence = [apl.action()];
     else if (props.modelValue.sequence.length)
         props.modelValue.sequence = [];
@@ -95,7 +95,7 @@ const changed = () => {
             :fill-missing="true"
             @input="changeAction"
         />
-        <div class="apl-sequence" v-if="props.modelValue.type == apl.action_type.SEQUENCE">
+        <div class="apl-sequence" v-if="props.modelValue.action_type == apl.action_type.SEQUENCE">
             <template v-for="(action, index) in props.modelValue.sequence" :key="action.id">
                 <apl-action
                     v-model="props.modelValue.sequence[index]"

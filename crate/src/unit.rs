@@ -5,9 +5,10 @@ use crate::cooldown;
 use crate::event::Event;
 use crate::event::EventType;
 use crate::spell::Spell;
-use crate::sim::Sim;
+use crate::target::Target;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
+use std::collections::HashMap;
 
 pub trait Unit {
     fn id(&self) -> i32;
@@ -28,8 +29,8 @@ pub trait Unit {
     fn set_gcd(&mut self, gcd: f64);
     fn auras(&mut self) -> &mut aura::Auras;
     fn cooldowns(&mut self) -> &mut cooldown::Cooldowns;
-    fn next_event(&mut self, t: f64, num_targets: i32) -> Event;
     fn on_event(&mut self, event: &Event) -> Vec<Event>;
+    fn next_event(&mut self, t: f64, targets: &HashMap<i32, Target>) -> Event;
 
     fn owner_id(&self) -> i32 {
         self.id()
@@ -93,6 +94,17 @@ pub trait Unit {
         spell.coeff+= self.spell_coeff_mod(&spell);
         spell.cooldown+= self.spell_cooldown_mod(&spell);
         spell
+    }
+
+    fn wait_event(&self, t: f64, text: String) -> Event {
+        Event {
+            t,
+            event_type: EventType::ManaGain,
+            unit_id: self.id(),
+            text,
+            is_main_event: true,
+            ..Default::default()
+        }
     }
 
     fn mana_event(&self, mana: f64, text: String) -> Event {

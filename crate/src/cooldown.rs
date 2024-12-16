@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-const TRINKET_POWER: i32 = 1;
+pub const TRINKET_POWER: i32 = 1;
 
 #[derive(Default, Clone)]
 pub struct Cooldown {
@@ -26,7 +26,7 @@ impl Cooldown {
 
 #[derive(Default)]
 pub struct Cooldowns {
-    cooldowns: HashMap<i32, Cooldown>,
+    pub cooldowns: HashMap<i32, Cooldown>,
 }
 
 impl Cooldowns {

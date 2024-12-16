@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Default, Serialize, Deserialize, Clone, Copy)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Race {
     #[default]
     Gnome,
