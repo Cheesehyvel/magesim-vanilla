@@ -32,14 +32,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Set up wasm-pack
-        uses: cargo install wasm-pack
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 23
           cache: 'npm'
-      - name: Install dependencies
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+      - name: Install npm dependencies
         run: npm ci
       - name: Build wasm
         run: npm run wasm
