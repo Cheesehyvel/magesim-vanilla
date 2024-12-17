@@ -1,11 +1,11 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import _ from "lodash";
 import apl from "../apl";
 import common from "../common";
 
 const props = defineProps(["modelValue", "player"]);
-const emits = defineEmits(["update:modelValue"]);
+const emits = defineEmits(["update:modelValue", "save"]);
 
 /*
  * Collapse
@@ -53,12 +53,11 @@ const statusToggle = (item) => {
 const itemTitle = (item) => {
     let arr = [];
 
-    let action = apl.actions().find(a => a.type == item.action.action_type && a.key == item.action.key);
-    if (action) {
+    let action = apl.actions().find(a => a.key == item.action.key);
+    if (action)
         arr.push(action.title);
-    }
 
-    if (item.action.action_type == apl.action_type.SEQUENCE)
+    if (item.action.key == "Sequence")
         arr.push(item.action.sequence.length+" actions");
 
     let numCond = (cond) => {
@@ -115,7 +114,7 @@ const onDragMove = (e) => {
     dragging.x = e.clientX;
     dragging.y = e.clientY;
     if (el.value) {
-        let wrapper = el.value.children[0];
+        let wrapper = el.value.querySelector(".apl-items");
         for (var i=0; i<wrapper.children.length; i++) {
             let item = wrapper.children[i];
             let rect = item.getBoundingClientRect();
@@ -139,12 +138,25 @@ const isDragEnd = computed(() => {
  * Update
  */
 const changed = () => {
+    if (props.modelValue.id.indexOf("default") != -1) {
+        props.modelValue.id = common.uuid();
+        props.modelValue.name = "";
+    }
     emits("update:modelValue", props.modelValue);
 };
 
 /*
  * Events
  */
+watch(() => props.modelValue.id, (value) => {
+    if (collapsed.value.length)
+        collapsed.value = props.modelValue.items.map(i => i.id);
+});
+watch(() => props.player.id, (value) => {
+    if (collapsed.value.length)
+        collapsed.value = props.modelValue.items.map(i => i.id);
+});
+
 onMounted(() => {
     window.addEventListener("mousemove", onDragMove);
     window.addEventListener("mouseup", onDragEnd);
@@ -164,7 +176,12 @@ onUnmounted(() => {
         <div class="apl-items" :class="{dragend: isDragEnd}">
             <div
                 class="apl-item"
-                :class="{collapsed: isCollapsed(item.id), dragto: isDragTo(index), dragfrom: dragging.id == item.id}"
+                :class="[
+                    isCollapsed(item.id) ? 'collapsed' : 'expanded',
+                    isDragTo(index) ? 'dragto' : '',
+                    dragging.id == item.id ? 'dragfrom' : '',
+                    'status-'+item.status,
+                ]"
                 v-for="(item, index) in modelValue.items"
                 :key="item.id"
             >
@@ -207,12 +224,15 @@ onUnmounted(() => {
                     {{ itemTitle(item) }}
                 </div>
                 <div class="body" v-else>
-                    <apl-condition v-model="item.condition" :player="props.player" />
-                    <apl-action v-model="item.action" :player="props.player" />
+                    <apl-condition v-model="item.condition" :player="props.player" @update:modelValue="changed" />
+                    <apl-action v-model="item.action" :player="props.player" @update:modelValue="changed" />
                 </div>
             </div>
         </div>
-        <button class="btn btn-primary" @click="createItem">New action</button>
+        <div class="apl-buttons">
+            <button class="btn btn-primary" @click="createItem">New action</button>
+            <button class="btn btn-secondary right" @click="emits('save')">Save rotation</button>
+        </div>
         <div class="dragger" v-if="dragging.id" :style="{transform: 'translate3d('+dragging.x+'px,'+dragging.y+'px,0)'}"></div>
     </div>
 </template>

@@ -58,6 +58,7 @@
         > .drag {
             position: absolute;
             top: 0;
+            bottom: 0;
             right: 100%;
             width: 20px;
             text-align: center;
@@ -73,6 +74,10 @@
 
         &:hover > .drag {
             opacity: 1;
+        }
+
+        &.status-false .status {
+            color: var(--color-danger);
         }
 
         > .header {
@@ -228,6 +233,14 @@
 
         .apl-sequence > .btn {
             margin: 5px 0 0 20px;
+        }
+    }
+
+    .apl-buttons {
+        @util clearfix;
+
+        .right {
+            float: right;
         }
     }
 }

@@ -6,7 +6,7 @@ import {
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  // Tooltip,
   Legend
 } from "chart.js";
 import { Line } from "vue-chartjs";
@@ -18,7 +18,7 @@ Chart.register(
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  // Tooltip,
   Legend
 );
 
@@ -35,7 +35,7 @@ const makeChart = () => {
         maintainAspectRatio: false,
         elements: {
             point: {
-                radius: 4,
+                radius: 0,
             },
         },
         scales: {
@@ -73,18 +73,18 @@ const makeChart = () => {
                 },
             },
         },
-        plugins: {
-            tooltip: {
-                callbacks: {
-                    title: (context) => {
-                        return `Time: ${context[0].label} seconds`;
-                    },
-                    label: (context) => {
-                        return `${context.dataset.label}: ${context.parsed.y.toFixed()} dps`;
-                    }
-                }
-            }
-        }
+        // plugins: {
+        //     tooltip: {
+        //         callbacks: {
+        //             title: (context) => {
+        //                 return `Time: ${context[0].label} seconds`;
+        //             },
+        //             label: (context) => {
+        //                 return context.dataset.label+": "+context.parsed.y.toFixed();
+        //             }
+        //         }
+        //     }
+        // }
     };
 
     let mana_smooth = false;
@@ -131,9 +131,9 @@ const makeChart = () => {
 
     // DPS
     let colors = [
+        "#fa0",
         "#03f",
         "#0a0",
-        "#fa0",
         "#80a",
         "#dd0",
         "#0cc",
@@ -163,13 +163,15 @@ const makeChart = () => {
     // Only have mana graph for a single player
     if (props.player) {
         for (let name of names) {
+            let prevt = -1;
             sublog = props.player ? log : log.filter(l => l.unit_name == name);
             d = [];
             d.push({x: 0, y: 100});
             if (mana_smooth) {
                 for (let entry of sublog) {
-                    if (entry.t < 0)
+                    if (entry.t < 0 || prevt == entry.t)
                         continue;
+                    prevt = entry.t;
                     if (entry.log_type == "Mana")
                         d.push({x: entry.t, y: entry.mana_percent});
                 }
@@ -177,8 +179,9 @@ const makeChart = () => {
             }
             else {
                 for (let entry of log) {
-                    if (entry.t < 0)
+                    if (entry.t < 0 || prevt == entry.t)
                         continue;
+                    prevt = entry.t;
                     d.push({x: entry.t, y: entry.mana_percent});
                 }
             }

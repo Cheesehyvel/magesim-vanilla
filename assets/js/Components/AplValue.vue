@@ -11,9 +11,9 @@ const emits = defineEmits(["update:modelValue"]);
 
 const typeOptions = [
     { value: apl.value_type.CONST, title: "Constant", input: "vfloat" },
-    { value: apl.value_type.PLAYER_MANA, title: "Mana", input: "vfloat" },
-    { value: apl.value_type.PLAYER_MANA_PERCENT, title: "Mana %", input: "vfloat" },
-    { value: apl.value_type.PLAYER_MANA_DEFICIT, title: "Mana deficit", input: "vfloat" },
+    { value: apl.value_type.PLAYER_MANA, title: "Mana", provides: "vfloat" },
+    { value: apl.value_type.PLAYER_MANA_PERCENT, title: "Mana %", provides: "vfloat" },
+    { value: apl.value_type.PLAYER_MANA_DEFICIT, title: "Mana deficit", provides: "vfloat" },
     { value: apl.value_type.PLAYER_TALENT_COUNT, title: "Talent points", input: "talent", provides: "vfloat" },
     { value: apl.value_type.PLAYER_COOLDOWN_EXISTS, title: "Cooldown active", input: "cooldown", provides: "bool" },
     { value: apl.value_type.PLAYER_COOLDOWN_REACT, title: "Cooldown active (w/ reaction time)", input: "cooldown", provides: "bool" },

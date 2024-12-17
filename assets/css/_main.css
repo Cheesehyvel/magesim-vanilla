@@ -375,11 +375,14 @@ body {
             @util clearfix;
             padding: 20px 20px 0;
             background: var(--color-bg4);
+            user-select: none;
 
             .tab {
                 float: left;
                 background: var(--color-bg2);
+                border: 0;
                 border-radius: 4px 4px 0 0;
+                color: #fff;
                 padding: 20px 30px;
                 line-height: 20px;
                 font-size: 14px;
@@ -520,8 +523,74 @@ body {
         > .rotation {
             padding: 30px;
             box-sizing: border-box;
-            max-height: calc(100vh - 80px);
+            height: calc(100vh - 80px);
             overflow: auto;
+
+            .apl-list {
+                .list .item {
+                    @util clearfix;
+                    background: var(--color-bg1);
+                    padding: 5px 10px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: color 0.2s ease;
+                    user-select: none;
+
+                    &:nth-child(n+2) {
+                        margin-top: 4px;
+                    }
+
+                    &:hover {
+                        color: var(--color-primary-light);
+
+                        .actions {
+                            opacity: 1;
+                        }
+                    }
+
+                    .name {
+                        @util truncate;
+                        float: left;
+                        max-width: calc(100% - 30px);
+                    }
+
+                    .actions {
+                        float: right;
+                        opacity: 0;
+                        transition: opacity 0.2s ease;
+
+                        button {
+                            display: inline-block;
+                            border: 0;
+                            background: none;
+                            padding: 0 5px;
+                            color: var(--color-grey);
+                            cursor: pointer;
+                            transition: color 0.2s ease;
+                            margin-left: 5px;
+
+                            &:hover {
+                                color: var(--color-primary-light);
+                            }
+
+                            &.delete:hover {
+                                color: var(--color-danger);
+                            }
+
+                            &.toggle {
+                                float: left;
+                                padding-right: 150px;
+                                margin-left: 0;
+                            }
+
+                            .micon {
+                                line-height: 18px;
+                                font-size: 14px;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         > .export {
@@ -610,6 +679,8 @@ body {
                 display: inline-block;
                 padding: 8px 15px;
                 margin-bottom: -1px;
+                background: none;
+                border: 0;
                 line-height: 20px;
                 font-size: 12px;
                 font-weight: 700;
@@ -732,6 +803,26 @@ body {
                             .dps {
                                 font-weight: 700;
                                 font-size: 20px;
+                            }
+                        }
+                    }
+                }
+
+                > .info {
+                    float: right;
+                    margin-left: 40px;
+                    font-size: 14px;
+                    color: var(--color-grey);
+
+                    table {
+                        border-collapse: collapse;
+
+                        td {
+                            padding: 2px;
+
+                            &:last-child {
+                                padding-left: 20px;
+                                text-align: right;
                             }
                         }
                     }

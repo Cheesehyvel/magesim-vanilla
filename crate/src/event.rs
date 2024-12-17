@@ -1,10 +1,11 @@
+use crate::apl;
 use crate::aura;
 use crate::cooldown;
 use crate::spell;
 use crate::unit::Unit;
 use std::collections::VecDeque;
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Copy, Clone)]
 pub enum EventType {
     #[default]
     None,
@@ -39,8 +40,7 @@ pub struct Event {
     pub aura: Option<aura::Aura>,
     pub cooldown: Option<cooldown::Cooldown>,
     pub is_main_event: bool,
-    pub is_quiet: bool,
-    pub events: VecDeque<Event>,
+    pub apl_sequence: VecDeque<apl::AplAction>,
 }
 
 impl Event {
@@ -57,8 +57,7 @@ impl Event {
             aura: None,
             cooldown: None,
             is_main_event: true,
-            is_quiet: false,
-            events: VecDeque::new(),
+            apl_sequence: VecDeque::new(),
         }
     }
 }

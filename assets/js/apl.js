@@ -20,13 +20,6 @@ export default {
         LT: "Lt",
         LTE: "Lte",
     },
-    action_type: {
-        NONE: "None",
-        SPELL: "Spell",
-        SEQUENCE: "Sequence",
-        WAIT: "Wait",
-        CUSTOM: "Custom",
-    },
     value_type: {
         NONE: "None",
         CONST: "Const",
@@ -64,38 +57,38 @@ export default {
 
     actions() {
         return [
-            { key: "None", type: this.action_type.NONE, title: "Do nothing" },
-            { key: "Sequence", type: this.action_type.SEQUENCE, title: "Sequence" },
-            { key: "ArcaneMissiles", type: this.action_type.SPELL, title: "Cast: Arcane Missiles" },
-            { key: "ArcanePower", type: this.action_type.SPELL, title: "Cast: Arcane Power", talent: "arcane_power" },
-            { key: "Berserking", type: this.action_type.SPELL, title: "Cast: Berserking", race: "Troll" },
-            { key: "ColdSnap", type: this.action_type.SPELL, title: "Cast: Cold Snap", talent: "cold_snap" },
-            { key: "Combustion", type: this.action_type.SPELL, title: "Cast: Combustion", talent: "combustion" },
-            { key: "Evocation", type: this.action_type.SPELL, title: "Cast: Evocation" },
-            { key: "Fireball", type: this.action_type.SPELL, title: "Cast: Fireball" },
-            { key: "FireBlast", type: this.action_type.SPELL, title: "Cast: Fire Blast" },
-            { key: "Frostbolt", type: this.action_type.SPELL, title: "Cast: Frostbolt" },
-            { key: "PresenceOfMind", type: this.action_type.SPELL, title: "Cast: Presence of Mind", talent: "presence_of_mind" },
-            { key: "Pyroblast", type: this.action_type.SPELL, title: "Cast: Pyroblast", talent: "pyroblast" },
-            { key: "Scorch", type: this.action_type.SPELL, title: "Cast: Scorch" },
-            { key: "ManaGem", type: this.action_type.SPELL, title: "Use: Mana Gem" },
-            { key: "ManaPotion", type: this.action_type.SPELL, title: "Use: Mana Potion" },
-            { key: "CelestialOrb", type: this.action_type.SPELL, title: "off_hand", item: items.ids.CELESTIAL_ORB },
-            { key: "RobeArchmage", type: this.action_type.SPELL, title: "chest", item: items.ids.ROBE_ARCHMAGE },
-            { key: "BurstOfKnowledge", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_BURST_OF_KNOWLEDGE },
-            { key: "ChromaticInfusion", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_DRACONIC_EMBLEM },
-            { key: "EssenceOfSapphiron", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_RESTRAINED_ESSENCE },
-            { key: "ObsidianInsight", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_EYE_OF_MOAM },
-            { key: "ChaosFire", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_FIRE_RUBY },
-            { key: "ArcanePotency", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_HAZZARAH },
-            { key: "MindQuickening", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_MQG },
-            { key: "NatPagle", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_NAT_PAGLE },
-            { key: "EphemeralPower", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_TOEP },
-            { key: "ManaInfusion", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_WARMTH_OF_FORGIVENESS },
-            { key: "UnstablePower", type: this.action_type.SPELL, title: "trinket", item: items.ids.TRINKET_ZHC },
-            { key: "Innervate", type: this.action_type.SPELL, title: "External: Innervate" },
-            { key: "ManaTide", type: this.action_type.SPELL, title: "External: Mana Tide", faction: "horde" },
-            { key: "PowerInfusion", type: this.action_type.SPELL, title: "External: Power Infusion" },
+            { key: "None", title: "Do nothing" },
+            { key: "Sequence", title: "Sequence" },
+            { key: "ArcaneMissiles", title: "Cast: Arcane Missiles" },
+            { key: "ArcanePower", title: "Cast: Arcane Power", talent: "arcane_power" },
+            { key: "Berserking", title: "Cast: Berserking", race: "Troll" },
+            { key: "ColdSnap", title: "Cast: Cold Snap", talent: "cold_snap" },
+            { key: "Combustion", title: "Cast: Combustion", talent: "combustion" },
+            { key: "Evocation", title: "Cast: Evocation" },
+            { key: "Fireball", title: "Cast: Fireball" },
+            { key: "FireBlast", title: "Cast: Fire Blast" },
+            { key: "Frostbolt", title: "Cast: Frostbolt" },
+            { key: "PresenceOfMind", title: "Cast: Presence of Mind", talent: "presence_of_mind" },
+            { key: "Pyroblast", title: "Cast: Pyroblast", talent: "pyroblast" },
+            { key: "Scorch", title: "Cast: Scorch" },
+            { key: "ManaGem", title: "Use: Mana Gem" },
+            { key: "ManaPotion", title: "Use: Mana Potion" },
+            { key: "CelestialOrb", title: "off_hand", item: items.ids.CELESTIAL_ORB },
+            { key: "RobeArchmage", title: "chest", item: items.ids.ROBE_ARCHMAGE },
+            { key: "BurstOfKnowledge", title: "trinket", item: items.ids.TRINKET_BURST_OF_KNOWLEDGE },
+            { key: "ChromaticInfusion", title: "trinket", item: items.ids.TRINKET_DRACONIC_EMBLEM },
+            { key: "EssenceOfSapphiron", title: "trinket", item: items.ids.TRINKET_RESTRAINED_ESSENCE },
+            { key: "ObsidianInsight", title: "trinket", item: items.ids.TRINKET_EYE_OF_MOAM },
+            { key: "ChaosFire", title: "trinket", item: items.ids.TRINKET_FIRE_RUBY },
+            { key: "ArcanePotency", title: "trinket", item: items.ids.TRINKET_HAZZARAH },
+            { key: "MindQuickening", title: "trinket", item: items.ids.TRINKET_MQG },
+            { key: "NatPagle", title: "trinket", item: items.ids.TRINKET_NAT_PAGLE },
+            { key: "EphemeralPower", title: "trinket", item: items.ids.TRINKET_TOEP },
+            { key: "ManaInfusion", title: "trinket", item: items.ids.TRINKET_WARMTH_OF_FORGIVENESS },
+            { key: "UnstablePower", title: "trinket", item: items.ids.TRINKET_ZHC },
+            { key: "Innervate", title: "External: Innervate" },
+            { key: "ManaTide", title: "External: Mana Tide", faction: "horde" },
+            { key: "PowerInfusion", title: "External: Power Infusion" },
         ];
     },
 
@@ -104,6 +97,7 @@ export default {
             id: common.uuid(),
             type: "apl",
             version: "1.0",
+            name: "",
             items: [],
         };
     },
@@ -127,8 +121,7 @@ export default {
     action() {
         return {
             id: common.uuid(),
-            action_type: this.action_type.NONE,
-            key: "none",
+            key: "None",
             target_id: 1,
             sequence: [],
         }
@@ -137,9 +130,21 @@ export default {
         return {
             id: common.uuid(),
             value_type: this.value_type.NONE,
-            vstr: null,
+            vstr: "",
             vint: 0,
             vfloat: 0,
         }
+    },
+
+    getAction(key) {
+        let action = this.actions().find(a => a.key == key);
+        let defAction = this.action();
+        if (!action)
+            return defAction;
+        for (let key in defAction) {
+            if (!action.hasOwnProperty(key))
+                action[key] = defAction[key];
+        }
+        return action;
     },
 }

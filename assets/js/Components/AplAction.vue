@@ -13,7 +13,7 @@ const playerItems = computed(() => {
     return _.values(props.player.loadout).map(i => i.item_id);
 });
 const filterOptions = (options) => {
-    options = options.filter(opt => {
+    let isActive = (opt) => {
         if (opt.hasOwnProperty("race") && opt.race != props.player.race)
             return false;
         if (opt.hasOwnProperty("faction")) {
@@ -29,17 +29,19 @@ const filterOptions = (options) => {
         }
         if (opt.hasOwnProperty("item") && playerItems.value.indexOf(opt.item) == -1)
             return false;
-        if (opt.type == apl.action_type.SEQUENCE && props.deletable)
+        if (opt.key == "Sequence" && props.deletable)
             return false;
         return true;
-    });
+    };
 
     for (let option of options) {
         if (option.item) {
             let item = items.gear[option.title].find(i => i.id == option.item);
             if (item)
-                option.title = _.upperFirst(option.title)+": "+item.title;
+                option.title = _.upperFirst(option.title.split("_").join(" "))+": "+item.title;
         }
+        if (!isActive(option))
+            option.title+= " (inactive)";
     }
 
     return options;
@@ -47,23 +49,14 @@ const filterOptions = (options) => {
 const actionOptions = computed(() => {
     let options = apl.actions();
     for (let option of options)
-        option.value = option.type+"_"+option.key;
+        option.value = option.key;
     return filterOptions(options);
 });
-const currentAction = computed(() => {
-    let opt = actionOptions.value.find(a => a.type == props.modelValue.action_type && a.key == props.modelValue.key);
-    return opt ? opt.value : "none";
-});
 const changeAction = (value) => {
-    let opt = actionOptions.value.find(a => a.value == value);
-    props.modelValue.action_type = opt.type;
-    props.modelValue.key = opt.key;
-
-    if (opt.type == apl.action_type.SEQUENCE)
+    if (value == "Sequence")
         props.modelValue.sequence = [apl.action()];
     else if (props.modelValue.sequence.length)
         props.modelValue.sequence = [];
-
     changed();
 };
 
@@ -90,18 +83,19 @@ const changed = () => {
 <template>
     <div class="apl-action">
         <select-simple
-            :modelValue="currentAction"
+            v-model="props.modelValue.key"
             :options="actionOptions"
             :fill-missing="true"
             @input="changeAction"
         />
-        <div class="apl-sequence" v-if="props.modelValue.action_type == apl.action_type.SEQUENCE">
+        <div class="apl-sequence" v-if="props.modelValue.key == 'Sequence'">
             <template v-for="(action, index) in props.modelValue.sequence" :key="action.id">
                 <apl-action
                     v-model="props.modelValue.sequence[index]"
                     :player="props.player"
                     :deletable="true"
                     @delete="deleteAction(index)"
+                    @update:modelValue="changed"
                 />
             </template>
             <button class="btn btn-secondary small" @click="createAction">Add action</button>

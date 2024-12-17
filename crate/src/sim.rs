@@ -27,6 +27,8 @@ pub fn new_rng(rng_seed: u64) -> ChaCha8Rng {
 pub struct PlayerResult {
     pub dmg: u64,
     pub dps: f64,
+    pub ignite_dmg: u64,
+    pub ignite_dps: f64,
     pub name: String,
 }
 
@@ -88,6 +90,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
                 result.players = r.players.clone();
             } else {
                 result.players[j].dps+= (pr.dps - result.players[j].dps) / (i as f64);
+                result.players[j].ignite_dps+= (pr.ignite_dps - result.players[j].ignite_dps) / (i as f64);
             }
         }
     }
@@ -161,15 +164,19 @@ impl Sim {
 
         self.result.dmg = self.total_dmg();
         self.result.dps = (self.result.dmg as f64) / self.result.t;
+        self.result.ignite_dmg = self.total_ignite_dmg();
         self.result.ignite_dps = (self.result.ignite_dmg as f64) / self.result.t;
         self.result.log = self.log.clone();
 
         for i in 1..=self.config.players.len() {
             let dmg = self.unit_total_dmg(i as i32);
+            let ignite_dmg = self.unit_total_ignite_dmg(i as i32);
             self.result.players.push(PlayerResult {
                 name: self.units[&(i as i32)].name(),
                 dmg,
-                dps: (dmg as f64) / self.result.t
+                dps: (dmg as f64) / self.result.t,
+                ignite_dmg,
+                ignite_dps: (ignite_dmg as f64) / self.result.t,
             });
         }
 
@@ -221,7 +228,15 @@ impl Sim {
     }
 
     fn unit_total_dmg(&self, unit_id: i32) -> u64 {
-        self.targets.iter().fold(0, |acc, (id, t)| acc + t.dmg.get(&unit_id).unwrap_or(&0))
+        self.targets.iter().fold(0, |acc, (id, t)| acc + t.unit_dmg.get(&unit_id).unwrap_or(&0))
+    }
+
+    fn total_ignite_dmg(&self) -> u64 {
+        self.targets.iter().fold(0, |acc, (id, t)| acc + t.total_ignite_dmg())
+    }
+
+    fn unit_total_ignite_dmg(&self, unit_id: i32) -> u64 {
+        self.targets.iter().fold(0, |acc, (id, t)| acc + t.unit_ignite_dmg.get(&unit_id).unwrap_or(&0))
     }
 
     fn work(&mut self) {
@@ -321,7 +336,7 @@ impl Sim {
             }
 
             _ => {
-                console_log!("Unhandled event type");
+                console_log!("{}: Unhandled event type: {} | Unit: {}", self.t, event.event_type as i32, event.unit_id);
             }
         }
     }
@@ -458,7 +473,6 @@ impl Sim {
             ev.target_id = event.target_id;
             ev.t = spell.this_cast_time;
             ev.is_main_event = event.is_main_event;
-            ev.is_quiet = event.is_quiet;
             self.push_event(ev);
         }
     }
@@ -521,10 +535,10 @@ impl Sim {
 
         if instance.dmg > 0.0 && event.unit_id != 0 {
             self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_dmg(event.unit_id, instance.dmg.round() as u64);
-        }
 
-        if instance.spell.id == spell::IGNITE {
-            self.result.ignite_dmg+= instance.dmg.round() as u64;
+            if instance.spell.id == spell::IGNITE {
+                self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_ignite_dmg(event.unit_id, instance.dmg.round() as u64);
+            }
         }
 
         let inst = event.spell_instance.as_ref().unwrap();
@@ -566,7 +580,6 @@ impl Sim {
             ev.target_id = event.target_id;
             ev.spell_instance = Some(instance.clone());
             ev.is_main_event = event.is_main_event;
-            ev.is_quiet = event.is_quiet;
             self.push_event(ev);
         }
 
@@ -581,7 +594,11 @@ impl Sim {
 
         self.units.get_mut(&event.unit_id).unwrap().mod_mana(event.mana, self.t);
 
-        self.log_value(log::LogType::Mana, String::from("Mana"), event.unit_id, event.mana);
+        if event.text.len() > 0 {
+            self.log_value(log::LogType::Mana, event.text.clone(), event.unit_id, event.mana);
+        } else {
+            self.log_value(log::LogType::Mana, String::from("Mana"), event.unit_id, event.mana);
+        }
     }
 
     fn on_mana_regen(&mut self, event: &mut Event) {
@@ -797,18 +814,19 @@ impl Sim {
 
 
             let dmg = (self.target(target_id).ignite_dmg * self.target(target_id).ignite_modifier).round();
+            let uid = self.target(target_id).ignite_owner_id;
             for i in 1..=spell.ticks {
                 let mut instance = spell::SpellInstance::new(spell.clone());
                 let t = self.target(target_id).ignite_t - self.t + spell.t_interval * (i as f64);
                 instance.result = spell::SpellResult::Hit;
                 instance.tick = i;
                 instance.dmg = dmg;
-                instance.resist = self.spell_dmg_resist(unit_id, &instance);
+                instance.resist = self.spell_dmg_resist(uid, &instance);
                 instance.dmg-= instance.resist;
                 self.push_event(Event {
                     event_type: EventType::SpellImpact,
                     t,
-                    unit_id,
+                    unit_id: uid,
                     target_id,
                     spell_instance: Some(instance),
                     is_main_event: false,
@@ -821,6 +839,7 @@ impl Sim {
             aura.owner_id = self.target(target_id).ignite_owner_id;
             aura.max_stacks = 5;
             aura.show_refresh = true;
+            aura.duration = 4.0;
             let mut event = Event::new(EventType::AuraGain);
             event.unit_id = self.target(target_id).ignite_owner_id;
             event.target_id = target_id;
@@ -1112,7 +1131,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
-            ignite_dps: self.result.ignite_dmg as f64 / self.t,
+            ignite_dps: self.total_ignite_dmg() as f64 / self.t,
             value: 0.0,
             value2: 0.0,
             spell_result: spell::SpellResult::None,
@@ -1129,7 +1148,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
-            ignite_dps: self.result.ignite_dmg as f64 / self.t,
+            ignite_dps: self.total_ignite_dmg() as f64 / self.t,
             value,
             value2: 0.0,
             spell_result: spell::SpellResult::None,
@@ -1146,7 +1165,7 @@ impl Sim {
             mana_percent: self.unit(unit_id).mana_percent(),
             dps: self.unit_total_dmg(unit_id) as f64 / self.t,
             total_dps: self.total_dmg() as f64 / self.t,
-            ignite_dps: self.result.ignite_dmg as f64 / self.t,
+            ignite_dps: self.total_ignite_dmg() as f64 / self.t,
             value: instance.dmg,
             value2: instance.resist,
             spell_result: instance.result,

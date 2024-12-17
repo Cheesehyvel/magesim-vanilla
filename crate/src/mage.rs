@@ -85,7 +85,7 @@ pub struct Mage {
     pub auras: aura::Auras,
     pub cooldowns: cooldown::Cooldowns,
     pub rng: ChaCha8Rng,
-    _apl_sequence: VecDeque<Event>,
+    _apl_sequence: VecDeque<apl::AplAction>,
     _combustion: i32,
     _mana_gems: i32,
 }
@@ -145,19 +145,31 @@ impl Mage {
             let sequence = &raw mut self._apl_sequence;
 
             // Pending action sequence
-            if (*sequence).len() > 0 {
-                return (*sequence).pop_front().unwrap();
+            while (*sequence).len() > 0 {
+                let action = (*sequence).pop_front().unwrap();
+                let event = self.apl_action(&action, t, targets);
+                if event.event_type != EventType::None {
+                    return event;
+                }
             }
 
             for apl_item in self.player_config().apl.items.iter() {
                 if self.apl_check_condition(&apl_item.condition, t, targets) {
                     let mut event = self.apl_action(&apl_item.action, t, targets);
-                    if event.events.len() > 0 {
-                        while let Some(ev) = event.events.pop_front() {
-                            (*sequence).push_back(ev);
+                    if event.apl_sequence.len() > 0 {
+                        // Add to state sequence
+                        while let Some(action) = event.apl_sequence.pop_front() {
+                            (*sequence).push_back(action);
                         }
-                        return (*sequence).pop_front().unwrap();
-                    } else {
+                        // Do first valid action in sequence
+                        while (*sequence).len() > 0 {
+                            let action = (*sequence).pop_front().unwrap();
+                            let ev = self.apl_action(&action, t, targets);
+                            if ev.event_type != EventType::None {
+                                return ev;
+                            }
+                        }
+                    } else if event.event_type != EventType::None {
                         return event;
                     }
                 }
@@ -168,172 +180,166 @@ impl Mage {
     }
 
     fn apl_action(&self, apl_action: &apl::AplAction, t: f64, targets: &HashMap<i32, Target>) -> Event {
-         match apl_action.action_type {
-            apl::AplActionType::Sequence => {
-                let mut event = Event::new(EventType::Sequence);
+        let mut event = Event::new(EventType::CastStart);
+        match apl_action.key {
+            apl::AplActionKey::Sequence => {
+                event.event_type = EventType::Sequence;
                 for action in apl_action.sequence.iter() {
-                    event.events.push_back(self.apl_action(&action, t, targets));
+                    event.apl_sequence.push_back(action.clone());
                 }
-                event
+                return event
             }
-            apl::AplActionType::Spell => {
-                let mut event = Event::new(EventType::CastStart);
-                match apl_action.key {
-                    apl::AplActionKey::ArcaneMissiles => {
-                        event.spell = Some(self.this_spell(spell::arcane_missiles()));
-                    }
-                    apl::AplActionKey::ArcanePotency => {
-                        if !self.cooldowns.has(spell::ARCANE_POTENCY) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_HAZZARAH) {
-                            event.spell = Some(self.this_spell(spell::arcane_potency()));
-                        }
-                    }
-                    apl::AplActionKey::ArcanePower => {
-                        if !self.cooldowns.has(spell::ARCANE_POWER) && self.talent(TALENT_ARCANE_POWER) > 0 {
-                            event.spell = Some(self.this_spell(spell::arcane_power()));
-                        }
-                    }
-                    apl::AplActionKey::Berserking => {
-                        if !self.cooldowns.has(spell::BERSERKING) && self.player_config().race == common::Race::Troll {
-                            event.spell = Some(self.this_spell(spell::berserking()));
-                        }
-                    }
-                    apl::AplActionKey::BurstOfKnowledge => {
-                        if !self.cooldowns.has(spell::BURST_OF_KNOWLEDGE) && self.has_item(item::TRINKET_BURST_OF_KNOWLEDGE) {
-                            event.spell = Some(self.this_spell(spell::burst_of_knowledge()));
-                        }
-                    }
-                    apl::AplActionKey::CelestialOrb => {
-                        if !self.cooldowns.has(spell::CELESTIAL_ORB) && self.has_item(item::CELESTIAL_ORB) {
-                            event.spell = Some(self.this_spell(spell::celestial_orb()));
-                        }
-                    }
-                    apl::AplActionKey::ChaosFire => {
-                        if !self.cooldowns.has(spell::CHAOS_FIRE) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_FIRE_RUBY) {
-                            event.spell = Some(self.this_spell(spell::chaos_fire()));
-                        }
-                    }
-                    apl::AplActionKey::ChromaticInfusion => {
-                        if !self.cooldowns.has(spell::CHROMATIC_INFUSION) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_DRACONIC_EMBLEM) {
-                            event.spell = Some(self.this_spell(spell::chromatic_infusion()));
-                        }
-                    }
-                    apl::AplActionKey::ColdSnap => {
-                        if !self.cooldowns.has(spell::COLD_SNAP) && self.talent(TALENT_COLD_SNAP) > 0 {
-                            event.spell = Some(self.this_spell(spell::cold_snap()));
-                        }
-                    }
-                    apl::AplActionKey::Combustion => {
-                        if !self.cooldowns.has(spell::COMBUSTION) && self.talent(TALENT_COMBUSTION) > 0 {
-                            event.spell = Some(self.this_spell(spell::combustion()));
-                        }
-                    }
-                    apl::AplActionKey::EphemeralPower => {
-                        if !self.cooldowns.has(spell::EPHEMERAL_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_TOEP) {
-                            event.spell = Some(self.this_spell(spell::ephemeral_power()));
-                        }
-                    }
-                    apl::AplActionKey::EssenceOfSapphiron => {
-                        if !self.cooldowns.has(spell::ESSENCE_OF_SAPPHIRON) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_RESTRAINED_ESSENCE) {
-                            event.spell = Some(self.this_spell(spell::essence_of_sapphiron()));
-                        }
-                    }
-                    apl::AplActionKey::Evocation => {
-                        if !self.cooldowns.has(spell::EVOCATION) {
-                            event.spell = Some(self.this_spell(spell::evocation()));
-                        }
-                    }
-                    apl::AplActionKey::Fireball => {
-                        event.spell = Some(self.this_spell(spell::fireball()));
-                    }
-                    apl::AplActionKey::FireBlast => {
-                        if !self.cooldowns.has(spell::FIRE_BLAST) {
-                            event.spell = Some(self.this_spell(spell::fire_blast()));
-                        }
-                    }
-                    apl::AplActionKey::Frostbolt => {
-                        event.spell = Some(self.this_spell(spell::frostbolt()));
-                    }
-                    apl::AplActionKey::Innervate => {
-                        event.spell = Some(self.this_spell(spell::innervate()));
-                    }
-                    apl::AplActionKey::ManaGem => {
-                        if !self.cooldowns.has(spell::MANA_GEM) {
-                            event.spell = Some(self.this_spell(spell::mana_gem()));
-                        }
-                    }
-                    apl::AplActionKey::ManaInfusion => {
-                        if !self.cooldowns.has(spell::MANA_INFUSION) && self.has_item(item::TRINKET_WARMTH_OF_FORGIVENESS) {
-                            event.spell = Some(self.this_spell(spell::mana_infusion()));
-                        }
-                    }
-                    apl::AplActionKey::ManaPotion => {
-                        if !self.cooldowns.has(spell::MANA_POTION) {
-                            event.spell = Some(self.this_spell(spell::mana_potion()));
-                        }
-                    }
-                    apl::AplActionKey::ManaTide => {
-                        if self.is_horde() {
-                            event.spell = Some(self.this_spell(spell::mana_tide()));
-                        }
-                    }
-                    apl::AplActionKey::MindQuickening => {
-                        if !self.cooldowns.has(spell::MIND_QUICKENING) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_MQG) {
-                            event.spell = Some(self.this_spell(spell::mind_quickening()));
-                        }
-                    }
-                    apl::AplActionKey::NatPagle => {
-                        if !self.cooldowns.has(spell::NAT_PAGLE) && self.has_item(item::TRINKET_NAT_PAGLE) {
-                            event.spell = Some(self.this_spell(spell::nat_pagle()));
-                        }
-                    }
-                    apl::AplActionKey::ObsidianInsight => {
-                        if !self.cooldowns.has(spell::OBSIDIAN_INSIGHT) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_EYE_OF_MOAM) {
-                            event.spell = Some(self.this_spell(spell::obsidian_insight()));
-                        }
-                    }
-                    apl::AplActionKey::PowerInfusion => {
-                        event.spell = Some(self.this_spell(spell::power_infusion()));
-                    }
-                    apl::AplActionKey::PresenceOfMind => {
-                        if !self.cooldowns.has(spell::PRESENCE_OF_MIND) && self.talent(TALENT_PRESENCE_OF_MIND) > 0 {
-                            event.spell = Some(self.this_spell(spell::presence_of_mind()));
-                        }
-                    }
-                    apl::AplActionKey::Pyroblast => {
-                        if self.talent(TALENT_PYROBLAST) > 0 {
-                            event.spell = Some(self.this_spell(spell::pyroblast()));
-                        }
-                    }
-                    apl::AplActionKey::RobeArchmage => {
-                        if !self.cooldowns.has(spell::ROBE_ARCHMAGE) && self.has_item(item::ROBE_ARCHMAGE) {
-                            event.spell = Some(self.this_spell(spell::robe_archmage()));
-                        }
-                    }
-                    apl::AplActionKey::Scorch => {
-                        event.spell = Some(self.this_spell(spell::scorch()));
-                    }
-                    apl::AplActionKey::UnstablePower => {
-                        if !self.cooldowns.has(spell::UNSTABLE_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_ZHC) {
-                            event.spell = Some(self.this_spell(spell::unstable_power()));
-                        }
-                    }
-                    _ => { return Event::new(EventType::None); }
-                }
-                if event.spell.is_none() {
-                    event.event_type = EventType::None;
-                }
-                event
-            }
-            apl::AplActionType::Wait => {
-                let mut event = Event::new(EventType::Wait);
-                event.text = String::from("APL: Wait");
+            apl::AplActionKey::Wait => {
+                event.event_type = EventType::Wait;
                 event.t = 1.0;
-                event
+                return event
             }
-            _ => {
-                Event::new(EventType::None)
+            apl::AplActionKey::ArcaneMissiles => {
+                event.spell = Some(self.this_spell(spell::arcane_missiles()));
             }
+            apl::AplActionKey::ArcanePotency => {
+                if !self.cooldowns.has(spell::ARCANE_POTENCY) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_HAZZARAH) {
+                    event.spell = Some(self.this_spell(spell::arcane_potency()));
+                }
+            }
+            apl::AplActionKey::ArcanePower => {
+                if !self.cooldowns.has(spell::ARCANE_POWER) && self.talent(TALENT_ARCANE_POWER) > 0 {
+                    event.spell = Some(self.this_spell(spell::arcane_power()));
+                }
+            }
+            apl::AplActionKey::Berserking => {
+                if !self.cooldowns.has(spell::BERSERKING) && self.player_config().race == common::Race::Troll {
+                    event.spell = Some(self.this_spell(spell::berserking()));
+                }
+            }
+            apl::AplActionKey::BurstOfKnowledge => {
+                if !self.cooldowns.has(spell::BURST_OF_KNOWLEDGE) && self.has_item(item::TRINKET_BURST_OF_KNOWLEDGE) {
+                    event.spell = Some(self.this_spell(spell::burst_of_knowledge()));
+                }
+            }
+            apl::AplActionKey::CelestialOrb => {
+                if !self.cooldowns.has(spell::CELESTIAL_ORB) && self.has_item(item::CELESTIAL_ORB) {
+                    event.spell = Some(self.this_spell(spell::celestial_orb()));
+                }
+            }
+            apl::AplActionKey::ChaosFire => {
+                if !self.cooldowns.has(spell::CHAOS_FIRE) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_FIRE_RUBY) {
+                    event.spell = Some(self.this_spell(spell::chaos_fire()));
+                }
+            }
+            apl::AplActionKey::ChromaticInfusion => {
+                if !self.cooldowns.has(spell::CHROMATIC_INFUSION) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_DRACONIC_EMBLEM) {
+                    event.spell = Some(self.this_spell(spell::chromatic_infusion()));
+                }
+            }
+            apl::AplActionKey::ColdSnap => {
+                if !self.cooldowns.has(spell::COLD_SNAP) && self.talent(TALENT_COLD_SNAP) > 0 {
+                    event.spell = Some(self.this_spell(spell::cold_snap()));
+                }
+            }
+            apl::AplActionKey::Combustion => {
+                if !self.cooldowns.has(spell::COMBUSTION) && self.talent(TALENT_COMBUSTION) > 0 {
+                    event.spell = Some(self.this_spell(spell::combustion()));
+                }
+            }
+            apl::AplActionKey::EphemeralPower => {
+                if !self.cooldowns.has(spell::EPHEMERAL_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_TOEP) {
+                    event.spell = Some(self.this_spell(spell::ephemeral_power()));
+                }
+            }
+            apl::AplActionKey::EssenceOfSapphiron => {
+                if !self.cooldowns.has(spell::ESSENCE_OF_SAPPHIRON) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_RESTRAINED_ESSENCE) {
+                    event.spell = Some(self.this_spell(spell::essence_of_sapphiron()));
+                }
+            }
+            apl::AplActionKey::Evocation => {
+                if !self.cooldowns.has(spell::EVOCATION) {
+                    event.spell = Some(self.this_spell(spell::evocation()));
+                }
+            }
+            apl::AplActionKey::Fireball => {
+                event.spell = Some(self.this_spell(spell::fireball()));
+            }
+            apl::AplActionKey::FireBlast => {
+                if !self.cooldowns.has(spell::FIRE_BLAST) {
+                    event.spell = Some(self.this_spell(spell::fire_blast()));
+                }
+            }
+            apl::AplActionKey::Frostbolt => {
+                event.spell = Some(self.this_spell(spell::frostbolt()));
+            }
+            apl::AplActionKey::Innervate => {
+                event.spell = Some(self.this_spell(spell::innervate()));
+            }
+            apl::AplActionKey::ManaGem => {
+                if !self.cooldowns.has(spell::MANA_GEM) {
+                    event.spell = Some(self.this_spell(spell::mana_gem()));
+                }
+            }
+            apl::AplActionKey::ManaInfusion => {
+                if !self.cooldowns.has(spell::MANA_INFUSION) && self.has_item(item::TRINKET_WARMTH_OF_FORGIVENESS) {
+                    event.spell = Some(self.this_spell(spell::mana_infusion()));
+                }
+            }
+            apl::AplActionKey::ManaPotion => {
+                if !self.cooldowns.has(spell::MANA_POTION) {
+                    event.spell = Some(self.this_spell(spell::mana_potion()));
+                }
+            }
+            apl::AplActionKey::ManaTide => {
+                if self.is_horde() {
+                    event.spell = Some(self.this_spell(spell::mana_tide()));
+                }
+            }
+            apl::AplActionKey::MindQuickening => {
+                if !self.cooldowns.has(spell::MIND_QUICKENING) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_MQG) {
+                    event.spell = Some(self.this_spell(spell::mind_quickening()));
+                }
+            }
+            apl::AplActionKey::NatPagle => {
+                if !self.cooldowns.has(spell::NAT_PAGLE) && self.has_item(item::TRINKET_NAT_PAGLE) {
+                    event.spell = Some(self.this_spell(spell::nat_pagle()));
+                }
+            }
+            apl::AplActionKey::ObsidianInsight => {
+                if !self.cooldowns.has(spell::OBSIDIAN_INSIGHT) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_EYE_OF_MOAM) {
+                    event.spell = Some(self.this_spell(spell::obsidian_insight()));
+                }
+            }
+            apl::AplActionKey::PowerInfusion => {
+                event.spell = Some(self.this_spell(spell::power_infusion()));
+            }
+            apl::AplActionKey::PresenceOfMind => {
+                if !self.cooldowns.has(spell::PRESENCE_OF_MIND) && self.talent(TALENT_PRESENCE_OF_MIND) > 0 {
+                    event.spell = Some(self.this_spell(spell::presence_of_mind()));
+                }
+            }
+            apl::AplActionKey::Pyroblast => {
+                if self.talent(TALENT_PYROBLAST) > 0 {
+                    event.spell = Some(self.this_spell(spell::pyroblast()));
+                }
+            }
+            apl::AplActionKey::RobeArchmage => {
+                if !self.cooldowns.has(spell::ROBE_ARCHMAGE) && self.has_item(item::ROBE_ARCHMAGE) {
+                    event.spell = Some(self.this_spell(spell::robe_archmage()));
+                }
+            }
+            apl::AplActionKey::Scorch => {
+                event.spell = Some(self.this_spell(spell::scorch()));
+            }
+            apl::AplActionKey::UnstablePower => {
+                if !self.cooldowns.has(spell::UNSTABLE_POWER) && !self.cooldowns.has(cooldown::TRINKET_POWER) && self.has_item(item::TRINKET_ZHC) {
+                    event.spell = Some(self.this_spell(spell::unstable_power()));
+                }
+            }
+            _ => { return Event::new(EventType::None); }
         }
+        if event.spell.is_none() {
+            event.event_type = EventType::None;
+        } else if event.spell.as_ref().unwrap().min_dmg > 0.0 {
+            event.target_id = apl_action.target_id;
+        }
+        event
     }
 
     fn apl_check_condition(&self, apl_condition: &apl::AplCondition, t: f64, targets: &HashMap<i32, Target>) -> bool {

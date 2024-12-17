@@ -565,7 +565,7 @@ pub fn obsidian_insight() -> Spell {
 
 // Power Infusion
 pub fn power_infusion() -> Spell {
-    let mut spell = Spell::new(0, String::from("Power Infusion"), School::Holy);
+    let mut spell = Spell::new(POWER_INFUSION, String::from("Power Infusion"), School::Holy);
 
     spell.is_trigger = true;
     spell.gcd = 0.0;
@@ -575,7 +575,7 @@ pub fn power_infusion() -> Spell {
 
 // Presence of Mind
 pub fn presence_of_mind() -> Spell {
-    let mut spell = Spell::new(0, String::from("Presence of Mind"), School::Arcane);
+    let mut spell = Spell::new(PRESENCE_OF_MIND, String::from("Presence of Mind"), School::Arcane);
 
     spell.cooldown = 180.0;
     spell.is_trigger = true;

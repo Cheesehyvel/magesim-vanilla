@@ -61,5 +61,6 @@
         cursor: default;
         color: var(--color-primary);
         font-size: 16px;
+        margin-top: -3px;
     }
 }

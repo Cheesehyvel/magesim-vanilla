@@ -314,3 +314,15 @@ div.icon-checkboxes {
         margin-bottom: 15px;
     }
 }
+
+.form-boxes {
+    float: left;
+
+    > .form-box {
+        float: none;
+
+        &:nth-child(n+2) {
+            margin-top: 20px;
+        }
+    }
+}

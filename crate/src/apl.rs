@@ -28,16 +28,6 @@ pub enum AplConditionOp {
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub enum AplActionType {
-    #[default]
-    None,
-    Spell,
-    Sequence,
-    Wait,
-    Custom,
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum AplValueType {
     #[default]
     None,
@@ -105,6 +95,7 @@ pub enum AplActionKey {
     Scorch,
     Sequence,
     UnstablePower,
+    Wait,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
@@ -128,7 +119,6 @@ pub struct AplCondition {
 
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AplAction {
-    pub action_type: AplActionType,
     pub key: AplActionKey,
     pub target_id: i32,
     pub sequence: Vec<AplAction>,

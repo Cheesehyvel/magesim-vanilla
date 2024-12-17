@@ -95,7 +95,13 @@ const changed = () => {
                 :options="typeOptions"
                 @input="onTypeInput"
             />
-            <apl-value v-model="props.modelValue.values[0]" :player="props.player" :expect="expectValue" v-if="modelValue.values.length > 0" />
+            <apl-value
+                v-model="props.modelValue.values[0]"
+                :player="props.player"
+                :expect="expectValue"
+                v-if="modelValue.values.length > 0"
+                @update:modelValue="changed"
+            />
             <select-simple
                 class="op"
                 v-model="props.modelValue.op"
@@ -103,11 +109,23 @@ const changed = () => {
                 @input="changed"
                 v-if="hasOp"
             />
-            <apl-value v-model="props.modelValue.values[1]" :player="props.player" :expect="expectValue" v-if="modelValue.values.length > 1" />
+            <apl-value
+                v-model="props.modelValue.values[1]"
+                :player="props.player"
+                :expect="expectValue"
+                v-if="modelValue.values.length > 1"
+                @update:modelValue="changed"
+            />
         </div>
 
         <template v-for="(condition, index) in props.modelValue.conditions" :key="condition.id">
-            <apl-condition v-model="props.modelValue.conditions[index]" :player="props.player" :deletable="true" @delete="deleteCondition(index)" />
+            <apl-condition
+                v-model="props.modelValue.conditions[index]"
+                :player="props.player"
+                :deletable="true"
+                @delete="deleteCondition(index)"
+                @update:modelValue="changed"
+            />
         </template>
 
         <button class="btn btn-secondary small" @click="createCondition" v-if="canCreateCondition">Add condition</button>

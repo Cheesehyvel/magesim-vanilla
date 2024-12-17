@@ -12,6 +12,8 @@ const el = ref(null);
 const pos = ref(props.position);
 
 const checkCollision = () => {
+    if (!el.value)
+        return;
     var rect = el.value.getBoundingClientRect();
     if (pos.value == "right" && rect.x + rect.width > document.body.offsetWidth)
         pos.value = pos.value.replace("right", "left");

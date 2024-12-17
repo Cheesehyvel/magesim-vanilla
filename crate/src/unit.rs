@@ -112,6 +112,7 @@ pub trait Unit {
             event_type: EventType::ManaGain,
             unit_id: self.id(),
             text,
+            mana,
             is_main_event: false,
             ..Default::default()
         }
@@ -123,6 +124,7 @@ pub trait Unit {
             event_type: EventType::ManaGain,
             unit_id: self.id(),
             text,
+            mana,
             is_main_event: false,
             ..Default::default()
         }

@@ -248,18 +248,154 @@ const isItemSpecial = (id) => {
     }
     return false;
 };
-const loadoutSimItems = (loadout) => {
-    let arr = [];
-    for (let slot in loadout) {
-        let item = getItem(slot, loadout[slot].item_id);
-        if (item) {
-            if (item.id && isItemSpecial(item.id))
-                arr.push(item.id);
-            if (item.set)
-                arr.push(item.set);
-        }
-    }
-    return arr;
+
+/*
+ * APL
+ */
+const defaultApls = () => {
+    let data = [];
+    let item, cond;
+
+    let manaCds = [];
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.GTE;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.PLAYER_MANA_DEFICIT;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 2250;
+    item.action = aplData.getAction("ManaPotion");
+    manaCds.push(item);
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.AND;
+    cond = aplData.condition();
+    cond.condition_type = aplData.condition_type.CMP;
+    cond.op = aplData.condition_op.GTE;
+    cond.values = [aplData.value(), aplData.value()];
+    cond.values[0].value_type = aplData.value_type.PLAYER_MANA_DEFICIT;
+    cond.values[1].value_type = aplData.value_type.CONST;
+    cond.values[1].vfloat = 1200;
+    item.condition.conditions.push(cond);
+    cond = aplData.condition();
+    cond.condition_type = aplData.condition_type.TRUE;
+    cond.values = [aplData.value()];
+    cond.values[0].value_type = aplData.value_type.PLAYER_COOLDOWN_EXISTS;
+    cond.values[0].vint = common.cooldowns.MANA_POTION;
+    item.condition.conditions.push(cond);
+    item.action = aplData.getAction("ManaGem");
+    manaCds.push(item);
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.LT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.PLAYER_MANA_PERCENT;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 10;
+    item.action = aplData.getAction("Evocation");
+    manaCds.push(item);
+
+    let cds = [
+        aplData.getAction("ArcanePower"),
+        aplData.getAction("Combustion"),
+        aplData.getAction("EssenceOfSapphiron"),
+        aplData.getAction("UnstablePower"),
+        aplData.getAction("EphemeralPower"),
+        aplData.getAction("ChaosFire"),
+        aplData.getAction("MindQuickening"),
+    ];
+
+    let frost = aplData.apl();
+    frost.id = "default-frost";
+    frost.name = "Frost";
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.LT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 1.4;
+    item.action = aplData.getAction("Sequence");
+    item.action.sequence = [
+        aplData.getAction("Frostbolt"),
+        aplData.getAction("PowerInfusion"),
+        ...cds
+    ];
+    frost.items.push(item);
+    frost.items = [...frost.items, ...manaCds];
+    item = aplData.item();
+    item.action = aplData.getAction("Sequence");
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.GT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 90;
+    item.action.sequence = cds;
+    frost.items.push(item);
+    item = aplData.item();
+    item.action = aplData.getAction("Frostbolt");
+    frost.items.push(item);
+    data.push(frost);
+
+    let fire = aplData.apl();
+    fire.id = "default-fire";
+    fire.name = "Fire";
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.LT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 1.4;
+    item.action = aplData.getAction("Sequence");
+    item.action.sequence = [
+        aplData.getAction("Scorch"),
+        aplData.getAction("Scorch"),
+        aplData.getAction("Frostbolt"),
+        aplData.getAction("PowerInfusion"),
+        ...cds.slice(1)
+    ];
+    fire.items.push(item);
+    fire.items = [...fire.items, ...manaCds];
+    item = aplData.item();
+    item.action = aplData.getAction("Sequence");
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.GT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 90;
+    item.action.sequence = cds;
+    fire.items.push(item);
+    item = aplData.item();
+    item.action = aplData.getAction("Fireball");
+    fire.items.push(item);
+    data.push(fire);
+
+    let f2 = _.cloneDeep(fire);
+    f2.name = "Fire - delayed combustion"
+    f2.id = "default-fire-d1";
+    f2.items[0].action.sequence.splice(3, 1); // Remove combustion
+    item = aplData.item();
+    item.condition.condition_type = aplData.condition_type.CMP;
+    item.condition.op = aplData.condition_op.GT;
+    item.condition.values = [aplData.value(), aplData.value()];
+    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
+    item.condition.values[1].value_type = aplData.value_type.CONST;
+    item.condition.values[1].vfloat = 10.0;
+    item.action = aplData.getAction("Combustion");
+    f2.items.splice(1, 0, item);
+    data.push(f2);
+
+    let blank = aplData.apl();
+    blank.id = "default-blank";
+    blank.name = "Blank";
+    data.push(blank);
+
+    return data;
+};
+const isDefaultApl = (id) => {
+    return id.indexOf("default") != -1;
 };
 
 /*
@@ -294,6 +430,7 @@ const simDefaultPlayer = () => {
         stats: baseStats("Undead"),
         level: 60,
         items: [],
+        apl: defaultApls()[0],
         mage_armor: true,
         mana_spring: true,
         imp_mana_spring: true,
@@ -330,8 +467,6 @@ const defaultPlayer = () => {
         weapon_oil: common.weapon_oils.BRILLIANT_WIZARD,
         loadout: baseLoadout(),
         bonus_stats: common.stats(),
-        // TODO: Move to simDefaultConfig
-        apl: aplData.apl(),
     });
 };
 const createPlayer = (name) => {
@@ -375,12 +510,9 @@ const loadRaids = () => {
     else {
         let defRaid = defaultRaid();
         let defPlayer = defaultPlayer();
-        // Convert old data
+        // Convert data
         for (let raid of raids) {
-            delete raid.config.pre_cast;
-            delete raid.config._sync_buffs;
             for (let player of raid.players) {
-                delete player.apl;
                 player.talents.splice(49);
                 if (player.hasOwnProperty("extra_stats")) {
                     player.bonus_stats = player.extra_stats;
@@ -389,6 +521,12 @@ const loadRaids = () => {
                 for (let key in defPlayer) {
                     if (!player.hasOwnProperty(key))
                         player[key] = defPlayer[key];
+                }
+                // Reload preset apl
+                if (isDefaultApl(player.apl.id)) {
+                    let ap = defaultApls().find(a => a.id == player.apl.id);
+                    if (ap)
+                        player.apl = ap;
                 }
             }
             for (let key in defRaid) {
@@ -423,11 +561,15 @@ const activeRaid = computed(() => {
 /*
  * Settings
  */
+const detectedCores = () => {
+    return navigator.hardwareConcurrency;
+};
 const defaultSettings = () => {
     return {
-        iterations: 20000,
-        threads: navigator.hardwareConcurrency,
+        iterations: 10000,
+        threads: detectedCores(),
         raid_id: null,
+        normalize_ignite: false,
     }
 };
 const loadSettings = () => {
@@ -555,6 +697,29 @@ const simStats = (player) => {
 
     return stats;
 };
+const simLoadoutItems = (loadout) => {
+    let arr = [];
+    for (let slot in loadout) {
+        let item = getItem(slot, loadout[slot].item_id);
+        if (item) {
+            if (item.id && isItemSpecial(item.id))
+                arr.push(item.id);
+            if (item.set)
+                arr.push(item.set);
+        }
+    }
+    return arr;
+};
+const simApl = (apl) => {
+    apl = _.cloneDeep(apl);
+    for (let i=0; i<apl.items.length; i++) {
+        if (!apl.items[i].status) {
+            apl.items.splice(i, 1);
+            i--;
+        }
+    }
+    return apl;
+};
 const simConfig = () => {
     let config = _.cloneDeep(activeRaid.value.config);
     for (let key in config) {
@@ -574,7 +739,8 @@ const simConfig = () => {
         for (var key in player)
             player[key] = _.cloneDeep(p[key]);
         player.stats = simStats(p);
-        player.items = loadoutSimItems(p.loadout);
+        player.items = simLoadoutItems(p.loadout);
+        player.apl = simApl(p.apl);
         config.players.push(player);
     }
 
@@ -601,7 +767,6 @@ const runMultiple = () => {
     const sc = new SimContainer(settings.threads, settings.iterations, simConfig(), r => {
         isRunning.value = false;
         result.value = r;
-        console.log("Simulation completed in "+r.time.toFixed(2)+"s");
     }, e => {
         console.error("Error", e);
     }, p => {
@@ -1142,6 +1307,78 @@ const refreshTooltips = () => {
 };
 
 /*
+ * APL UI
+ */
+const loadApls = () => {
+    let apls = window.localStorage.getItem("apls");
+    if (apls)
+        apls = JSON.parse(apls);
+    if (_.isEmpty(apls))
+        apls = [];
+    return apls;
+};
+const saveApls = (data) => {
+    data = data.filter(a => !isDefaultApl(a.id));
+    window.localStorage.setItem("apls", JSON.stringify(data));
+};
+const selectApl = (data) => {
+    if (!activePlayer.value)
+        return;
+    activePlayer.value.apl = data;
+};
+const apls = ref(loadApls());
+const editApl = ref();
+const aplModel = ref(null);
+const aplTargetOptions = computed(() => {
+    return apls.value.map(a => { return {value: a.id, title: a.name}; });
+});
+const copyPlayerApl = () => {
+    if (!playerModelCopy.value || !activePlayer.value)
+        return;
+    let player = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
+    if (!player)
+        return;
+    activePlayer.value.apl = _.cloneDeep(player.apl);
+    nextTick(() => { playerModelCopy.value = null; });
+};
+const editAplOpen = () => {
+    aplModel.value = _.cloneDeep(activePlayer.value.apl);
+    if (isDefaultApl(aplModel.value.id)) {
+        if (aplModel.value.name == "Blank")
+            aplModel.value.name = "";
+        else
+            aplModel.value.name+= " copy";
+        aplModel.value.id = common.uuid();
+    }
+    if (editApl.value)
+        editApl.value.open(true);
+};
+const deleteApl = (id) => {
+    if (isDefaultApl(id))
+        return;
+    apls.value = apls.value.filter(a => a.id != id);
+    saveApls(apls.value);
+};
+const updateApl = () => {
+    if (!aplModel.value)
+        return;
+
+    let data = _.cloneDeep(aplModel.value);
+    let index = _.findIndex(apls.value, {id: data.id});
+    if (index == -1)
+        apls.value.push(data);
+    else
+        apls.value.splice(index, 1, data);
+
+    if (activePlayer.value && activePlayer.value.apl.id == data.id)
+        activePlayer.value.apl.name = data.name;
+
+    saveApls(apls.value);
+    if (editApl.value)
+        editApl.value.close();
+};
+
+/*
  * Export keys
  * We use these to make exports smaller by removing the keys and storing the values as arrays
  *
@@ -1164,7 +1401,7 @@ const configExportKeys = () => {
 };
 const playerExportKeys = () => {
     return [
-        "name", "race", "level",
+        "name", "race", "level", "apl",
         "mage_armor", "mana_spring", "imp_mana_spring",
         "dmf_dmg", "soul_revival", "traces_of_silithyst",
         "arcane_intellect", "divine_spirit", "motw", "imp_motw", "moonkin_aura",
@@ -1177,7 +1414,24 @@ const playerExportKeys = () => {
         "bonus_stats", "talents", "loadout",
     ];
 };
-const exportSerialize = (keys, data) => {
+const aplExportKeys = () => {
+    return ["type", "version", "items"];
+};
+const aplItemExportKeys = () => {
+    return ["condition", "action", "status"];
+};
+const aplConditionExportKeys = () => {
+    return ["condition_type", "op", "conditions", "values"];
+};
+const aplActionExportKeys = () => {
+    // Add target id if we add interface for it
+    // return ["key", "sequence", "target_id"];
+    return ["key", "sequence"];
+};
+const aplValueExportKeys = () => {
+    return ["value_type", "vstr", "vfloat", "vint"];
+};
+const exportSerialize = (keys, data, strict) => {
     if (!data.hasOwnProperty("x"))
         data.x = [];
     for (let key of keys) {
@@ -1189,31 +1443,38 @@ const exportSerialize = (keys, data) => {
         data.x.push(value);
         delete data[key];
     }
+    if (strict) {
+        for (let key in data) {
+            if (key != "x")
+                delete data[key];
+        }
+    }
 };
-const importDeserialize = (keys, obj, data) => {
-    const configValue = (k, v) => {
-        if (v === undefined)
-            return obj[k];
-        if (obj[k] === false || obj[k] === true)
-            return v === 1 || v === true;
+const importDeserialize = (keys, data, ref) => {
+    const objValue = (k, v) => {
+        if (ref.hasOwnProperty(k)) {
+            if (v === undefined)
+                return ref[k];
+            if (ref[k] === false || ref[k] === true)
+                return v === 1 || v === true;
+        }
         return v;
     };
 
-    for (let key in data) {
-        if (key == "x") {
-            for (let i in data.x) {
-                let k = keys[i];
-                if (obj.hasOwnProperty(k))
-                    obj[k] = configValue(k, data.x[i]);
-            }
+    if (data.hasOwnProperty("x")) {
+        for (let i in data.x) {
+            let k = keys[i];
+            data[k] = objValue(k, data.x[i]);
         }
-        else if (key != "id") {
-            if (obj.hasOwnProperty(key))
-                obj[key] = configValue(key, data[i]);
-        }
+        delete data.x;
     }
 
-    return obj;
+    for (let key in ref) {
+        if (!data.hasOwnProperty(key))
+            data[key] = ref[key];
+    }
+
+    return data;
 };
 
 /*
@@ -1279,11 +1540,84 @@ const talentExportData = (talents) => {
 const talentImportData = (talents) => {
     return parseWowheadTalents(talents);
 };
+const aplExportData = (data) => {
+    let minimize = (obj) => {
+        delete obj.id;
+        delete obj.title;
+        if (obj.condition) {
+            minimize(obj.condition);
+            exportSerialize(aplConditionExportKeys(), obj.condition);
+        }
+        if (obj.action) {
+            minimize(obj.action);
+            exportSerialize(aplActionExportKeys(), obj.action, true);
+        }
+        if (obj.items)
+            obj.items.forEach((o) => { minimize(o); exportSerialize(aplItemExportKeys(), o); });
+        if (obj.conditions)
+            obj.conditions.forEach((o) => { minimize(o); exportSerialize(aplConditionExportKeys(), o); });
+        if (obj.actions)
+            obj.actions.forEach((o) => { minimize(o); exportSerialize(aplActionExportKeys(), o, true); });
+        if (obj.sequence)
+            obj.sequence.forEach((o) => { minimize(o); exportSerialize(aplActionExportKeys(), o, true); });
+        if (obj.values)
+            obj.values.forEach((o) => { minimize(o); exportSerialize(aplValueExportKeys(), o); });
+    };
+
+    if (isDefaultApl(data.id)) {
+        return {id: data.id};
+    }
+    else {
+        data = _.cloneDeep(data);
+        delete data.name;
+        minimize(data);
+        exportSerialize(aplExportKeys(), data);
+        return data;
+    }
+};
+const aplImportData = (data) => {
+    let restore = (obj) => {
+        if (!obj.id)
+            obj.id = common.uuid();
+        if (obj.condition) {
+            importDeserialize(aplConditionExportKeys(), obj.condition, aplData.condition());
+            restore(obj.condition);
+        }
+        if (obj.action) {
+            importDeserialize(aplActionExportKeys(), obj.action, aplData.action());
+            restore(obj.action);
+        }
+        if (obj.items)
+            obj.items.forEach((o) => { importDeserialize(aplItemExportKeys(), o, aplData.item()); restore(o); });
+        if (obj.conditions)
+            obj.conditions.forEach((o) => { importDeserialize(aplConditionExportKeys(), o, aplData.condition()); restore(o); });
+        if (obj.actions)
+            obj.actions.forEach((o) => { importDeserialize(aplActionExportKeys(), o, aplData.getAction(o[0])); restore(o); });
+        if (obj.sequence)
+            obj.sequence.forEach((o) => { importDeserialize(aplActionExportKeys(), o, aplData.getAction(o[0])); restore(o); });
+        if (obj.values)
+            obj.values.forEach((o) => { importDeserialize(aplValueExportKeys(), o, aplData.value()); restore(o); });
+    };
+
+    data = _.cloneDeep(data);
+
+    if (data.id) {
+        let ap = defaultApls().find(a => a.id == data.id);
+        if (ap)
+            return ap;
+    }
+
+    importDeserialize(aplExportKeys(), data, aplData.apl());
+    restore(data);
+
+    return data;
+};
 const exportPlayerData = (player) => {
     player = _.cloneDeep(player);
     player.bonus_stats = statsExportData(player.bonus_stats);
     player.talents = talentExportData(player.talents);
     player.loadout = loadoutExportData(player.loadout);
+    player.apl = aplExportData(player.apl);
     delete player.id;
     delete player.stats;
     delete player.items;
@@ -1292,14 +1626,12 @@ const exportPlayerData = (player) => {
 };
 const importPlayerData = (data) => {
     data = _.cloneDeep(data);
-    let player = defaultPlayer();
-
-    importDeserialize(playerExportKeys(), player, data);
-    player.loadout = loadoutImportData(player.loadout);
-    player.bonus_stats = statsImportData(player.bonus_stats);
-    player.talents = talentImportData(player.talents);
-
-    return player;
+    importDeserialize(playerExportKeys(), data, defaultPlayer());
+    data.loadout = loadoutImportData(data.loadout);
+    data.bonus_stats = statsImportData(data.bonus_stats);
+    data.talents = talentImportData(data.talents);
+    data.apl = aplImportData(data.apl);
+    return data;
 };
 const exportRaidData = (raid) => {
     raid = _.cloneDeep(raid);
@@ -1312,16 +1644,15 @@ const exportRaidData = (raid) => {
 };
 const importRaidData = (data) => {
     data = _.cloneDeep(data);
-    let raid = defaultRaid();
     let config = defaultConfig();
 
-    importDeserialize(raidExportKeys(), raid, data);
-    raid.config = importDeserialize(configExportKeys(), config, raid.config);
+    importDeserialize(raidExportKeys(), defaultRaid(), data);
+    data.config = importDeserialize(configExportKeys(), config, data.config);
 
-    for (let p in raid.players)
-        raid.players[p] = importPlayerData(raid.players[p]);
+    for (let p in data.players)
+        data.players[p] = importPlayerData(data.players[p]);
 
-    return raid;
+    return data;
 };
 const exportSuccess = ref(false);
 const exportSubmit = () => {
@@ -1437,6 +1768,13 @@ const closeResult = () => {
 };
 const openResult = () => {
     resultOpen.value = true;
+};
+const playerDps = (player) => {
+    if (result.value && settings.normalize_ignite) {
+        return player.dps - player.ignite_dps + result.value.ignite_dps / result.value.players.length;
+    }
+
+    return player.dps;
 };
 
 /*
@@ -1584,7 +1922,7 @@ onMounted(() => {
                                 <micon icon="close" />
                             </div>
                             <div class="dps">
-                                <span class="value">{{ result.players[0].dps.toFixed(1) }}</span>
+                                <span class="value">{{ playerDps(result.players[0]).toFixed(1) }}</span>
                                 <span class="title">{{ result.players[0].name }}</span>
                             </div>
                             <div class="dps">
@@ -1602,26 +1940,26 @@ onMounted(() => {
 
             <div class="right" v-if="activeRaid">
                 <div class="tabs">
-                    <div class="tab" :class="{active: activeTab == 'config'}" @click="activeTab = 'config'">
+                    <button class="tab" :class="{active: activeTab == 'config'}" @click="activeTab = 'config'">
                         Config
-                    </div>
+                    </button>
                     <template v-if="activePlayer">
-                        <div class="tab" :class="{active: activeTab == 'loadout'}" @click="activeTab = 'loadout'">
+                        <button class="tab" :class="{active: activeTab == 'loadout'}" @click="activeTab = 'loadout'">
                             Gear
-                        </div>
-                        <div class="tab" :class="{active: activeTab == 'talents'}" @click="activeTab = 'talents'">
+                        </button>
+                        <button class="tab" :class="{active: activeTab == 'talents'}" @click="activeTab = 'talents'">
                             Talents
-                        </div>
-                        <div class="tab" :class="{active: activeTab == 'rotation'}" @click="activeTab = 'rotation'">
+                        </button>
+                        <button class="tab" :class="{active: activeTab == 'rotation'}" @click="activeTab = 'rotation'">
                             Rotation
-                        </div>
+                        </button>
                     </template>
-                    <div class="tab" :class="{active: activeTab == 'export'}" @click="activeTab = 'export'">
+                    <button class="tab" :class="{active: activeTab == 'export'}" @click="activeTab = 'export'">
                         Export
-                    </div>
-                    <div class="tab" :class="{active: activeTab == 'import'}" @click="activeTab = 'import'">
+                    </button>
+                    <button class="tab" :class="{active: activeTab == 'import'}" @click="activeTab = 'import'">
                         Import
-                    </div>
+                    </button>
                 </div>
 
                 <div class="config" v-if="activeTab == 'config'">
@@ -1951,7 +2289,13 @@ onMounted(() => {
                                 <input type="text" v-model.number="settings.iterations">
                             </div>
                             <div class="form-item">
-                                <label>Threads</label>
+                                <label>
+                                    <span class="middle">Threads</span>
+                                    <help>
+                                        Number of parallel simulations to run,<br> using multiple CPU cores.<br><br>
+                                        Detected cores: <b>{{ detectedCores() }}</b>
+                                    </help>
+                                </label>
                                 <input type="text" v-model.number="settings.threads">
                             </div>
                         </div>
@@ -2123,10 +2467,48 @@ onMounted(() => {
                 <div class="rotation" v-if="activeTab == 'rotation' && activePlayer">
                     <div class="form-box larger">
                         <div class="form-title">Rotation</div>
-                        <apl v-model="activePlayer.apl" :player="activePlayer" />
+                        <apl v-model="activePlayer.apl" :player="activePlayer" @save="editAplOpen" />
                     </div>
-                    <div class="form-box medium">
-                        <div class="form-title">List</div>
+                    <div class="form-boxes">
+                        <div class="form-box medium apl-list">
+                            <div class="form-title">Presets</div>
+                            <div class="list">
+                                <div
+                                    class="item default"
+                                    v-for="item in defaultApls()"
+                                    :key="item.id"
+                                    @click="selectApl(item)"
+                                >
+                                    <div class="name">{{ item.name }}</div>
+                                </div>
+                            </div>
+                            <div class="form-item">
+                                <select-simple
+                                    v-model="playerModelCopy"
+                                    :options="otherPlayerOptions"
+                                    empty-option="Copy from..."
+                                    @input="copyPlayerApl"
+                                />
+                            </div>
+                        </div>
+                        <div class="form-box medium apl-list" v-if="apls.length">
+                            <div class="form-title">Your rotations</div>
+                            <div class="list">
+                                <div
+                                    class="item default"
+                                    v-for="item in apls"
+                                    :key="item.id"
+                                    @click="selectApl(item)"
+                                >
+                                    <div class="name">{{ item.name }}</div>
+                                    <div class="actions">
+                                        <button class="delete" @click.stop="deleteApl(item.id)">
+                                            <micon icon="delete" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2169,19 +2551,19 @@ onMounted(() => {
                 </button>
                 <template v-if="result">
                     <div class="tabs">
-                        <div class="tab" :class="{active: activeResultTab == 'overview'}" @click="activeResultTab = 'overview'">
+                        <button class="tab" :class="{active: activeResultTab == 'overview'}" @click="activeResultTab = 'overview'">
                             Overview
-                        </div>
+                        </button>
                         <template v-if="result.iterations">
 
                         </template>
                         <template v-else>
-                            <div class="tab" :class="{active: activeResultTab == 'log'}" @click="activeResultTab = 'log'">
+                            <button class="tab" :class="{active: activeResultTab == 'log'}" @click="activeResultTab = 'log'">
                                 Combat log
-                            </div>
-                            <div class="tab" :class="{active: activeResultTab == 'graph'}" @click="activeResultTab = 'graph'">
+                            </button>
+                            <button class="tab" :class="{active: activeResultTab == 'graph'}" @click="activeResultTab = 'graph'">
                                 Graph
-                            </div>
+                            </button>
                         </template>
                     </div>
 
@@ -2190,19 +2572,22 @@ onMounted(() => {
                             <div class="players">
                                 <div class="player" v-for="player in result.players">
                                     <div class="progress-wrapper">
-                                        <progress-circle :value="player.dps / result.dps" :animate="true" />
+                                        <progress-circle :value="playerDps(player) / result.dps" :animate="true" />
                                         <div class="center">
                                             <div class="value">
-                                                <animate-number :end="player.dps / result.dps * 100" :decimals="0" />%
+                                                <animate-number :end="playerDps(player) / result.dps * 100" :decimals="0" />%
                                             </div>
                                         </div>
                                     </div>
                                     <div class="info">
                                         <div class="name">{{ player.name }}</div>
                                         <div class="dps">
-                                            <animate-number :end="player.dps" />
+                                            <animate-number :end="playerDps(player)" />
                                         </div>
                                     </div>
+                                </div>
+                                <div class="form-item" v-if="result.ignite_dps">
+                                    <checkbox label="Normalize ignite"><input type="checkbox" v-model="settings.normalize_ignite"></checkbox>
                                 </div>
                             </div>
                             <div class="total progress-wrapper">
@@ -2223,6 +2608,16 @@ onMounted(() => {
                                         <animate-number :end="result.ignite_dps" />
                                     </div>
                                 </div>
+                            </div>
+                            <div class="info">
+                                <table>
+                                    <tbody>
+                                        <tr><td>Players:</td><td>{{ result.players.length }}</td></tr>
+                                        <tr><td>Iterations:</td><td>{{ result.iterations }}</td></tr>
+                                        <tr><td>Execution time:</td><td>{{ result.time.toFixed(2) }}s</td></tr>
+                                        <tr><td>Time / iteration:</td><td>{{ (result.time / result.iterations * 1000).toFixed(2) }}ms</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -2333,7 +2728,7 @@ onMounted(() => {
             <div class="default player-edit">
                 <div class="form-title">Import player</div>
                 <div class="form-item">
-                    <label>Import as</label>
+                    <label>Import to</label>
                     <select-simple v-model="playerModelCopy" :options="playerCopyOptions" empty-option="New player" />
                 </div>
                 <template v-if="playerModelCopy">
@@ -2352,6 +2747,27 @@ onMounted(() => {
                 </template>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updatePlayer">Save player</button>
+                </div>
+            </div>
+        </spotlight>
+
+        <spotlight ref="editApl" class="small">
+            <div class="default apl-edit" v-if="aplModel">
+                <div class="form-title">Save rotation</div>
+                <div class="form-item">
+                    <label>Name</label>
+                    <input type="text" v-model="aplModel.name" @keydown.enter="updateApl">
+                </div>
+                <div class="form-item">
+                    <label>Save as</label>
+                    <select-simple
+                        v-model="aplModel.id"
+                        :options="aplTargetOptions"
+                        empty-option="New rotation"
+                    />
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="updateApl">Save rotation</button>
                 </div>
             </div>
         </spotlight>
