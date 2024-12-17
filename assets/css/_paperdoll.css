@@ -1,5 +1,5 @@
 .paperdoll {
-    @util clearfix;
+    @mixin clearfix;
 
     > div {
         position: relative;
@@ -110,7 +110,7 @@
         }
 
         .papers {
-            @util clearfix;
+            @mixin clearfix;
             position: absolute;
             top: 2px;
             white-space: nowrap;

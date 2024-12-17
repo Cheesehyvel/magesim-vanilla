@@ -22,7 +22,7 @@
             width: 100%;
 
             span {
-                @util truncate;
+                @mixin truncate;
                 display: block;
                 width: calc(100% - 10px);
             }

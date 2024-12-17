@@ -237,7 +237,7 @@
     }
 
     .apl-buttons {
-        @util clearfix;
+        @mixin clearfix;
 
         .right {
             float: right;
