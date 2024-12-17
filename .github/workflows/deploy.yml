@@ -30,6 +30,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up wasm-pack
+        uses: cargo install wasm-pack
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -37,7 +41,9 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Build
+      - name: Build wasm
+        run: npm run wasm
+      - name: Build vite
         run: npm run build --path=/magesim-vanilla/
       - name: Setup Pages
         uses: actions/configure-pages@v4

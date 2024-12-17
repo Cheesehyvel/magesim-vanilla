@@ -3,9 +3,9 @@ name = "crate"
 version = "0.1.0"
 authors = ["Osthyvel"]
 edition = "2021"
-description = "MageSim in Rust"
+description = "MageSim Vanilla"
 license = "GPL-3.0"
-repository = "https://github.com/Cheesehyvel/magesim-rust"
+repository = "https://github.com/Cheesehyvel/magesim-vanilla"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
