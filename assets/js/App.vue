@@ -6,6 +6,7 @@ import icons from "./icons";
 import items from "./items";
 import aplData from "./apl";
 import _ from "lodash";
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 
 /*
  * Helpers
@@ -1644,10 +1645,8 @@ const exportRaidData = (raid) => {
 };
 const importRaidData = (data) => {
     data = _.cloneDeep(data);
-    let config = defaultConfig();
-
-    importDeserialize(raidExportKeys(), defaultRaid(), data);
-    data.config = importDeserialize(configExportKeys(), config, data.config);
+    importDeserialize(raidExportKeys(), data, defaultRaid());
+    data.config = importDeserialize(configExportKeys(), data.config, defaultConfig());
 
     for (let p in data.players)
         data.players[p] = importPlayerData(data.players[p]);
@@ -1675,7 +1674,7 @@ const exportSubmit = () => {
         return;
     }
 
-    data = window.LZString.compressToEncodedURIComponent(JSON.stringify(data));
+    data = compressToEncodedURIComponent(JSON.stringify(data));
     data = window.location.origin+"#mse="+data;
     copyToClipboard(data);
     nextTick(() => { exportSuccess.value = true; });
@@ -1737,7 +1736,7 @@ const importNativeString = (str) => {
     let index = str.indexOf("#mse=");
     if (index != -1)
         str = str.substr(index+5);
-    let data = JSON.parse(window.LZString.decompressFromEncodedURIComponent(str));
+    let data = JSON.parse(decompressFromEncodedURIComponent(str));
     importNative(data);
 };
 const importNative = (data) => {
@@ -1746,7 +1745,7 @@ const importNative = (data) => {
     if (data.exp == "raid") {
         let raid = importRaidData(data.data);
         raidModel.value = raid;
-        raidImport.value.open(true);
+        raidEdit.value.open(true);
     }
     else if (data.exp == "player") {
         let player = importPlayerData(data.data);
