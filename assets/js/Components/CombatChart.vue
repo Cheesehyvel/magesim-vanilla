@@ -3,19 +3,19 @@ import {
   Chart,
   CategoryScale,
   LinearScale,
-  PointElement,
+  // PointElement,
   LineElement,
   Title,
   // Tooltip,
   Legend
 } from "chart.js";
 import { Line } from "vue-chartjs";
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, onMounted, watch } from "vue";
 
 Chart.register(
   CategoryScale,
   LinearScale,
-  PointElement,
+  // PointElement,
   LineElement,
   Title,
   // Tooltip,
@@ -33,11 +33,6 @@ const makeChart = () => {
     };
     let options = {
         maintainAspectRatio: false,
-        elements: {
-            point: {
-                radius: 0,
-            },
-        },
         scales: {
             x: {
                 display: true,
@@ -73,18 +68,6 @@ const makeChart = () => {
                 },
             },
         },
-        // plugins: {
-        //     tooltip: {
-        //         callbacks: {
-        //             title: (context) => {
-        //                 return `Time: ${context[0].label} seconds`;
-        //             },
-        //             label: (context) => {
-        //                 return context.dataset.label+": "+context.parsed.y.toFixed();
-        //             }
-        //         }
-        //     }
-        // }
     };
 
     let mana_smooth = false;
@@ -96,22 +79,6 @@ const makeChart = () => {
         names = names.filter(n => n == props.player);
         log = log.filter(l => l.unit_name == props.player);
     }
-
-    // Total dps
-    // d = [];
-    // d.push({x: 0, y: 0});
-    // for (let entry of log) {
-    //     if (entry.log_type == "SpellImpact")
-    //         d.push({x: entry.t, y: entry.total_dps});
-    // }
-    // d.push({x: props.result.t, y: props.result.dps});
-    // data.datasets.push({
-    //     data: d,
-    //     borderColor: "#d00",
-    //     backgroundColor: "#d00",
-    //     yAxisID: "dps",
-    //     label: "Total dps",
-    // });
 
     // Ignite
     d = [];

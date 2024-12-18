@@ -6,6 +6,7 @@ import AplValue from "./Components/AplValue.vue";
 import Checkbox from "./Components/Checkbox.vue";
 import CombatChart from "./Components/CombatChart.vue";
 import Help from "./Components/Help.vue";
+import Histogram from "./Components/Histogram.vue";
 import Micon from "./Components/Micon.vue";
 import ProgressCircle from "./Components/ProgressCircle.vue";
 import SelectSimple from "./Components/SelectSimple.vue";
@@ -26,6 +27,7 @@ export default {
         app.component("checkbox", Checkbox);
         app.component("combat-chart", CombatChart);
         app.component("help", Help);
+        app.component("histogram", Histogram);
         app.component("micon", Micon);
         app.component("progress-circle", ProgressCircle);
         app.component("select-simple", SelectSimple);

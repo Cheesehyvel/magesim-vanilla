@@ -1971,6 +1971,18 @@ const playerDps = (player) => {
 
     return player.dps;
 };
+const filterHistogram = ref(null);
+const filterHistogramOptions = computed(() => {
+    let options = [{value: "total", title: "Total dps"}];
+    if (result.value.ignite_dps)
+        options.push({value: "ignite", title: "Ignite"});
+    return options;
+});
+const histogramData = computed(() => {
+    if (filterHistogram.value == "ignite")
+        return result.value.ignite_histogram;
+    return result.value.histogram;
+});
 
 /*
  * Watchers
@@ -2155,6 +2167,11 @@ onMounted(() => {
                     <button class="tab" :class="{active: activeTab == 'import'}" @click="activeTab = 'import'">
                         Import
                     </button>
+                    <div class="github">
+                        <a href="https://github.com/Cheesehyvel/magesim-vanilla" target="_blank">
+                            <img src="/img/github-mark.svg" alt="Github">
+                        </a>
+                    </div>
                 </div>
 
                 <div class="config" v-if="activeTab == 'config'">
@@ -2777,7 +2794,9 @@ onMounted(() => {
                             Overview
                         </button>
                         <template v-if="result.iterations">
-
+                            <button class="tab" :class="{active: activeResultTab == 'histogram'}" @click="activeResultTab = 'histogram'">
+                                Histogram
+                            </button>
                         </template>
                         <template v-else>
                             <button class="tab" :class="{active: activeResultTab == 'log'}" @click="activeResultTab = 'log'">
@@ -2842,6 +2861,15 @@ onMounted(() => {
                                 </table>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="histogram" v-if="activeResultTab == 'histogram'">
+                        <div class="search">
+                            <div class="search-histogram">
+                                <select-simple v-model="filterHistogram" :options="filterHistogramOptions" :fill-missing="true" />
+                            </div>
+                        </div>
+                        <histogram :data="histogramData" />
                     </div>
 
                     <div class="graph" v-if="activeResultTab == 'graph'">

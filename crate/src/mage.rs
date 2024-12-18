@@ -111,6 +111,10 @@ impl Mage {
         }
     }
 
+    fn reaction_time(&self) -> f64 {
+        self.config.as_ref().unwrap().reaction_time
+    }
+
     fn player_config(&self) -> &PlayerConfig {
         &self.config.as_ref().unwrap().players[(self.id as usize) - 1]
     }
@@ -448,8 +452,7 @@ impl Mage {
                 if self.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
             }
             apl::AplValueType::PlayerAuraReact => {
-                // TODO: Reaction time
-                if self.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+                if self.auras.can_react_any(apl_value.vint, t - self.reaction_time()) { 1.0 } else { 0.0 }
             }
             apl::AplValueType::PlayerAuraStacks => {
                 self.auras.stacks(apl_value.vint, self.id()) as f64
@@ -469,9 +472,8 @@ impl Mage {
                 }
             }
             apl::AplValueType::TargetAuraReact => {
-                // TODO: Reaction time
                 if let Some(target) = targets.get(&1) {
-                    if target.auras.has(apl_value.vint, self.id()) { 1.0 } else { 0.0 }
+                    if target.auras.can_react(apl_value.vint, self.id(), t - self.reaction_time()) { 1.0 } else { 0.0 }
                 } else {
                     0.0
                 }

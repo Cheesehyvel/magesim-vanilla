@@ -51,8 +51,22 @@ class SimContainer {
                         sum.dps = (sum.dps * sum.iterations + data.result.dps * data.result.iterations) / (sum.iterations + data.result.iterations);
                         sum.ignite_dps = (sum.ignite_dps * sum.iterations + data.result.ignite_dps * data.result.iterations) / (sum.iterations + data.result.iterations);
 
+                        if (data.result.histogram) {
+                            for (const [key, val] of data.result.histogram) {
+                                let acc = sum.histogram.get(key);
+                                sum.histogram.set(key, val + (acc ? acc : 0));
+                            }
+                        }
+                        if (data.result.ignite_histogram) {
+                            for (const [key, val] of data.result.ignite_histogram) {
+                                let acc = sum.ignite_histogram.get(key);
+                                sum.ignite_histogram.set(key, val + (acc ? acc : 0));
+                            }
+                        }
+
                         for (let j=0; j<sum.players.length; j++) {
                             sum.players[j].dps = (sum.players[j].dps * sum.iterations + data.result.players[j].dps * data.result.iterations) / (sum.iterations + data.result.iterations);
+                            sum.players[j].ignite_dps = (sum.players[j].ignite_dps * sum.iterations + data.result.players[j].ignite_dps * data.result.iterations) / (sum.iterations + data.result.iterations);
                         }
 
                         sum.iterations+= data.result.iterations;

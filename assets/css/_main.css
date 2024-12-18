@@ -399,6 +399,15 @@ body {
                     background: var(--color-bg1);
                 }
             }
+
+            .github {
+                float: right;
+                width: 40px;
+
+                a {
+                    display: block;
+                }
+            }
         }
 
         > .config {
@@ -896,10 +905,17 @@ body {
                 }
             }
         }
-    }
-}
 
-.spotlight {
+        > .histogram {
+            > .search {
+                margin-bottom: 20px;
+
+                .search-histogram {
+                    width: 200px;
+                }
+            }
+        }
+    }
 }
 
 .spell-power {
@@ -1131,7 +1147,7 @@ button {
     }
 }
 
-.combat-chart .chart canvas {
+.chart canvas {
     height: 50vh;
     min-height: 400px;
 }

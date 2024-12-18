@@ -53,6 +53,8 @@ pub struct SimulationsResult {
     pub max_dps: f64,
     pub ignite_dps: f64,
     pub players: Vec<PlayerResult>,
+    pub histogram: HashMap<u32, u32>,
+    pub ignite_histogram: HashMap<u32, u32>,
 }
 
 // Public function to start a single simulation
@@ -70,6 +72,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
     sim.log_enabled = false;
 
     let mut result: SimulationsResult = SimulationsResult { iterations, ..Default::default() };
+    let bin_size: f64 = 50.0;
 
     for i in 1..=iterations {
         sim.iteration = i;
@@ -85,10 +88,24 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
             result.max_dps = r.dps;
         }
 
-        for (j, pr) in r.players.iter().enumerate() {
-            if i == 1 {
-                result.players = r.players.clone();
-            } else {
+        let bin = ((r.dps / bin_size).floor() * bin_size) as u32;
+        if let Some(num) = result.histogram.get_mut(&bin) {
+            *num+= 1;
+        } else {
+            result.histogram.insert(bin, 1);
+        }
+
+        let ignite_bin = ((r.ignite_dps / bin_size).floor() * bin_size) as u32;
+        if let Some(num) = result.ignite_histogram.get_mut(&ignite_bin) {
+            *num+= 1;
+        } else {
+            result.ignite_histogram.insert(ignite_bin, 1);
+        }
+
+        if i == 1 {
+            result.players = r.players.clone();
+        } else {
+            for (j, pr) in r.players.iter().enumerate() {
                 result.players[j].dps+= (pr.dps - result.players[j].dps) / (i as f64);
                 result.players[j].ignite_dps+= (pr.ignite_dps - result.players[j].ignite_dps) / (i as f64);
             }
@@ -869,7 +886,8 @@ impl Sim {
                 event.is_main_event = false;
                 self.on_aura_gain(&mut event);
             } else {
-                // TODO
+                // TODO: Dots that dont refresh
+                // No suchs spells right now
             }
         }
     }

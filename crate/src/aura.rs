@@ -150,7 +150,11 @@ impl Auras {
         self.auras.iter().any(|aura| aura.id == id)
     }
 
-    pub fn can_react(&self, id: i32, t: f64) -> bool {
+    pub fn can_react(&self, id: i32, owner_id: i32, t: f64) -> bool {
+        self.auras.iter().any(|aura| aura.id == id && (aura.is_shared || aura.owner_id == owner_id) && aura.t_gained <= t)
+    }
+
+    pub fn can_react_any(&self, id: i32, t: f64) -> bool {
         self.auras.iter().any(|aura| aura.id == id && aura.t_gained <= t)
     }
 }
