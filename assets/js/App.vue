@@ -461,11 +461,12 @@ const defaultPlayer = () => {
         blessing_of_kings: true,
         atiesh_mage: false,
         atiesh_warlock: false,
-        infallible_mind: false,
         songflower: true,
         rallying_cry: true,
         warchiefs_blessing: true,
         spirit_of_zandalar: true,
+        blessing_of_blackfathom: false,
+        infallible_mind: false,
         elixir_firepower: false,
         elixir_greater_firepower: true,
         elixir_frost_power: true,
@@ -685,6 +686,11 @@ const simStats = (player) => {
         stats.crit+= 10;
     if (player.warchiefs_blessing)
         stats.mp5+= 10;
+    if (player.blessing_of_blackfathom) {
+        stats.sp_frost+= 15;
+        stats.int+= 5;
+        stats.spi+= 5;
+    }
 
     if (player.spirit_of_zandalar) {
         stats.int*= 1.15;
@@ -1492,7 +1498,7 @@ const playerExportKeys = () => {
         "arcane_intellect", "divine_spirit", "motw", "imp_motw", "moonkin_aura",
         "blessing_of_wisdom", "imp_blessing_of_wisdom", "blessing_of_kings",
         "atiesh_mage", "atiesh_warlock", "infallible_mind",
-        "songflower", "rallying_cry", "warchiefs_blessing", "spirit_of_zandalar",
+        "songflower", "rallying_cry", "warchiefs_blessing", "spirit_of_zandalar", "blessing_of_blackfathom",
         "elixir_firepower", "elixir_greater_firepower", "elixir_frost_power",
         "elixir_arcane", "elixir_greater_arcane",
         "food", "flask", "weapon_oil",
@@ -2378,6 +2384,11 @@ onMounted(() => {
                                         <input type="checkbox" v-model="activePlayer.spirit_of_zandalar">
                                         <wowicon icon="spirit_of_zandalar" />
                                         <tooltip>Spirit of Zandalar</tooltip>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" v-model="activePlayer.blessing_of_blackfathom">
+                                        <wowicon icon="blessing_of_blackfathom" />
+                                        <tooltip>Blessing of Blackfathom</tooltip>
                                     </label>
                                     <label>
                                         <input type="checkbox" v-model="activePlayer.infallible_mind">
