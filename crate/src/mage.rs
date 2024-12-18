@@ -883,18 +883,22 @@ impl Unit for Mage {
                                 let fval = self.rng.gen_range(1..=500) as f64;
                                 events.push(self.mana_event(fval, String::from("Fire Ruby")));
                                 events.push(self.aura_event(aura::chaos_fire(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::CHROMATIC_INFUSION => {
                                 events.push(self.aura_event(aura::chromatic_infusion(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::EPHEMERAL_POWER => {
                                 events.push(self.aura_event(aura::ephemeral_power(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::ESSENCE_OF_SAPPHIRON => {
                                 events.push(self.aura_event(aura::essence_of_sapphiron(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::MANA_INFUSION => {
@@ -903,6 +907,7 @@ impl Unit for Mage {
                             }
                             spell::MIND_QUICKENING => {
                                 events.push(self.aura_event(aura::mind_quickening(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::NAT_PAGLE => {
@@ -911,10 +916,12 @@ impl Unit for Mage {
                             }
                             spell::OBSIDIAN_INSIGHT => {
                                 events.push(self.aura_event(aura::obsidian_insight(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
                             spell::UNSTABLE_POWER => {
                                 events.push(self.aura_event(aura::unstable_power(), 0));
+                                events.push(self.cooldown_event(cooldown::shared_trinket_power(events.last().as_ref().unwrap().aura.as_ref().unwrap().duration)));
                                 return events;
                             }
 
@@ -1072,12 +1079,6 @@ impl Unit for Mage {
                 }
             }
 
-            EventType::SpellTick => {
-                if event.spell_instance.is_some() {
-                    //
-                }
-            }
-
             EventType::AuraGain => {
                 if event.aura.is_some() {
                     let aura = event.aura.as_ref().unwrap();
@@ -1095,12 +1096,6 @@ impl Unit for Mage {
                     if aura.id == aura::COMBUSTION {
                         events.push(self.spell_cooldown_event(spell::combustion()));
                     }
-                }
-            }
-
-            EventType::CooldownGain => {
-                if event.cooldown.is_some() {
-                    //
                 }
             }
 

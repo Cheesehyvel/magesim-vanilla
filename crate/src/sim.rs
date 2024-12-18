@@ -470,11 +470,13 @@ impl Sim {
 
         let spell = event.spell.as_ref().unwrap();
 
-        let mut log_text = format!("s[{}]", spell.name);
-        if event.target_id != 0 {
-            log_text.push_str(&format!(" -> t[{}]", self.target(event.target_id).name));
+        if !spell.is_hidden() {
+            let mut log_text = format!("s[{}]", spell.name);
+            if event.target_id != 0 {
+                log_text.push_str(&format!(" -> t[{}]", self.target(event.target_id).name));
+            }
+            self.log_value(log::LogType::CastStart, log_text, event.unit_id, spell.this_cast_time);
         }
-        self.log_value(log::LogType::CastStart, log_text, event.unit_id, spell.this_cast_time);
 
         // Set unit gcd
         if event.is_main_event {
@@ -508,7 +510,9 @@ impl Sim {
             self.add_spell_cooldown(event.unit_id, spell);
         }
 
-        self.log(log::LogType::CastSuccess, format!("s[{}]", spell.name), event.unit_id);
+        if !spell.is_hidden() {
+            self.log(log::LogType::CastSuccess, format!("s[{}]", spell.name), event.unit_id);
+        }
 
         if spell.is_trigger {
             // Do nothing

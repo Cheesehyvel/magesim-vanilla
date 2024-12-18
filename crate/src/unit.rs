@@ -167,6 +167,15 @@ pub trait Unit {
         }
     }
 
+    fn cooldown_event(&self, cooldown: cooldown::Cooldown) -> Event {
+        let mut event = Event::new(EventType::CooldownGain);
+        event.is_main_event = false;
+        event.unit_id = self.id();
+        event.cooldown = Some(cooldown);
+
+        event
+    }
+
     fn spell_cooldown_event(&self, spell: Spell) -> Event {
         let mut event = Event::new(EventType::CooldownGain);
         event.is_main_event = false;

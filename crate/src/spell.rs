@@ -124,6 +124,10 @@ impl Spell {
 
         (distance / self.speed).max(0.0)
     }
+
+    pub fn is_hidden(&self) -> bool {
+        self.gcd == 0.0
+    }
 }
 
 #[derive(Clone)]

@@ -65,7 +65,7 @@ impl Cooldowns {
  */
 
 pub fn shared_trinket_power(duration: f64) -> Cooldown {
-    let mut cooldown = Cooldown::new(0, String::from("Trinket Power"), duration);
+    let mut cooldown = Cooldown::new(TRINKET_POWER, String::from("Trinket Power"), duration);
     cooldown.is_hidden = true;
 
     cooldown
