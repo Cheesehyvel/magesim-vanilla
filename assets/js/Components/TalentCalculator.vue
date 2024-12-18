@@ -2,10 +2,10 @@
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { mage as talentTree } from "../talents";
 
-const props = defineProps(["modelValue"]);
+const props = defineProps(["modelValue", "level"]);
 const emits = defineEmits(["update:modelValue"]);
 
-const maxTalents = 51;
+const maxTalents = props.level ? Math.max(0, props.level - 9) : 51;
 const maxTalentPoints = (talent) => {
     return talent.spellIds.length;
 };
@@ -208,7 +208,7 @@ watch(() => props.modelValue, refreshTooltips);
 </script>
 
 <template>
-    <div class="talent-calculator class-mage" :class="{complete: remainingPoints == 0}">
+    <div class="talent-calculator class-mage" :class="{complete: remainingPoints <= 0}">
         <div class="header">
             <div class="icon"><img :src="talentTree.icon" alt=""></div>
             <div class="name">{{ talentTree.class }}</div>

@@ -136,47 +136,48 @@ impl Mage {
     }
 
     fn apl_next_event(&mut self, t: f64, targets: &HashMap<i32, Target>) -> Event {
-        // Why unsafe?
-        // If an action is a sequence, we need save that sequence (or a state of some kind)
-        // so we can pop it next time this fn is called.
-        // I dont know how to do that wihout unsafe.
-        // Rust does not allow mutation of "self" inside of a field loop
-        unsafe {
-            let sequence = &raw mut self._apl_sequence;
+        let mut event = Event::new(EventType::None);
 
-            // Pending action sequence
-            while (*sequence).len() > 0 {
-                let action = (*sequence).pop_front().unwrap();
-                let event = self.apl_action(&action, t, targets);
-                if event.event_type != EventType::None {
-                    return event;
-                }
+        // Pending action sequence
+        while self._apl_sequence.len() > 0 {
+            let action = self._apl_sequence.pop_front().unwrap();
+            event = self.apl_action(&action, t, targets);
+            if event.event_type != EventType::None {
+                return event;
             }
+        }
 
-            for apl_item in self.player_config().apl.items.iter() {
-                if self.apl_check_condition(&apl_item.condition, t, targets) {
-                    let mut event = self.apl_action(&apl_item.action, t, targets);
-                    if event.apl_sequence.len() > 0 {
-                        // Add to state sequence
-                        while let Some(action) = event.apl_sequence.pop_front() {
-                            (*sequence).push_back(action);
-                        }
-                        // Do first valid action in sequence
-                        while (*sequence).len() > 0 {
-                            let action = (*sequence).pop_front().unwrap();
-                            let ev = self.apl_action(&action, t, targets);
-                            if ev.event_type != EventType::None {
-                                return ev;
-                            }
-                        }
-                    } else if event.event_type != EventType::None {
-                        return event;
-                    }
+        // Go through APL from the top
+        for apl_item in self.player_config().apl.items.iter() {
+            if self.apl_check_condition(&apl_item.condition, t, targets) {
+                event = self.apl_action(&apl_item.action, t, targets);
+                if event.event_type != EventType::None {
+                    break;
                 }
             }
         }
 
-        self.wait_event(0.1, String::from("APL: No available action"))
+        // Action sequence
+        if event.event_type == EventType::Sequence {
+            if event.apl_sequence.len() > 0 {
+                // Move sequence to state
+                while let Some(action) = event.apl_sequence.pop_front() {
+                    self._apl_sequence.push_back(action);
+                }
+                // Do first valid action in sequence
+                while self._apl_sequence.len() > 0 {
+                    let action = self._apl_sequence.pop_front().unwrap();
+                    let ev = self.apl_action(&action, t, targets);
+                    if ev.event_type != EventType::None {
+                        return ev;
+                    }
+                }
+            }
+        } else if event.event_type == EventType::None {
+            return self.wait_event(0.1, String::from("APL: No available action"));
+        }
+
+        event
     }
 
     fn apl_action(&self, apl_action: &apl::AplAction, t: f64, targets: &HashMap<i32, Target>) -> Event {

@@ -5,6 +5,7 @@ import common from "./common";
 import icons from "./icons";
 import items from "./items";
 import aplData from "./apl";
+import { mage as talentTree } from "./talents";
 import _ from "lodash";
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 
@@ -121,6 +122,13 @@ const parseWowheadTalents = (str) => {
     }
 
     return talents;
+};
+const talentPresets = () => {
+    return [
+        { name: "Fire", talents: parseWowheadTalents("230005230002-5052000123033151-003") },
+        { name: "Frost Arcane", talents: parseWowheadTalents("2300250310231531--053500030013") },
+        { name: "Frost WC", talents: parseWowheadTalents("230045200003--05350013122301051") },
+    ]
 };
 
 
@@ -855,6 +863,9 @@ const confirmationCancel = () => {
     confirmSpotlight.value.close();
 };
 
+/*
+ * Alert
+ */
 const alertSpotlight = ref();
 const alerter = reactive({
     text: "",
@@ -865,6 +876,21 @@ const alert = (text) => {
 };
 const alertClose = () => {
     alertSpotlight.value.close();
+};
+
+/*
+ * Notification
+ */
+const notifications = ref([]);
+const notify = (obj) => {
+    if (!obj.id)
+        obj.id = common.uuid();
+    notifications.value.push(obj);
+    if (obj.timer && obj.timer > 0) {
+        setTimeout(() => {
+            notifications.value = notifications.value.filter(n => n.id != obj.id);
+        }, obj.timer);
+    }
 };
 
 /*
@@ -887,20 +913,42 @@ const selectRaid = (id) => {
 };
 const raidEdit = ref();
 const raidModel = ref(defaultRaid());
+const raidModelCopy = ref(null);
+const raidCopyOptions = computed(() => {
+    if (!activeRaid.value)
+        return [];
+    let options = [];
+    for (let raid of raids.value) {
+        if (raid.id == raidModel.value.id)
+            continue;
+        options.push({value: raid.id, title: raid.name});
+    }
+    return options;
+});
 const createRaidOpen = () => {
     raidModel.value = defaultRaid();
     raidModel.value.name = "";
     raidSelectOpen.value = false;
     raidEdit.value.open(true);
 };
-const editRaidOpen = (raid) => {
-    raidModel.value = _.cloneDeep(raid);
-    raidSelectOpen.value = false;
-    raidEdit.value.open(true);
-};
 const updateRaid = () => {
     raidEdit.value.close();
     let raid = _.cloneDeep(raidModel.value);
+
+    if (raidModelCopy.value) {
+        let copy = raids.value.find(r => r.id == raidModelCopy.value);
+        if (copy) {
+            raid = _.cloneDeep(copy);
+            raid.id = raidModel.value.id;
+            raid.name = raidModel.value.name;
+            raid.faction = raidModel.value.faction;
+            if (raid.faction != copy.faction) {
+                for (let player of raid.players)
+                    player.race = convertRace(player.race);
+            }
+        }
+    }
+
     let index = raids.value.findIndex(r => r.id == raid.id);
     if (index != -1) {
         if (raids.value[index].faction != raid.faction) {
@@ -913,6 +961,7 @@ const updateRaid = () => {
         raids.value.push(raid);
         settings.raid_id = raid.id;
     }
+    raids.value = _.sortBy(raids.value, "name");
 };
 const factionOptions = [
     { value: "Alliance", title: "Alliance" },
@@ -1060,6 +1109,16 @@ const raceOptions = computed(() => {
         { value: "Undead", title: "Undead" },
     ];
 });
+const talentPreset = ref(null);
+const talentPresetOptions = computed(() => {
+    return talentPresets().map(t => { return {title: t.name, value: t.talents}; });
+});
+const setTalentPreset = () => {
+    if (!activePlayer.value || !talentPreset.value)
+        return;
+    activePlayer.value.talents = talentPreset.value;
+    nextTick(() => { talentPreset.value = null; });
+};
 
 /*
  * Main panel UI
@@ -1163,8 +1222,8 @@ const paperdollClick = (slot, type) => {
 const itemSearch = ref("");
 const itemSearchInput = ref();
 const itemSorting = ref({
-    name: null,
-    order: null,
+    name: "ilvl",
+    order: "desc",
 });
 const itemSort = (items, sorting) => {
     if (!sorting || !sorting.name)
@@ -1219,6 +1278,9 @@ const itemSort = (items, sorting) => {
         if (sorting.order == "desc" && result != 0)
             result = result < 0 ? 1 : -1;
 
+        // if (result == 0)
+        //     result = a.title.localeCompare(b.title);
+
         return result;
     });
 };
@@ -1248,6 +1310,28 @@ const itemList = computed(() => {
 
     return data;
 });
+const itemSearchEnter = () => {
+    if (itemList.value.list.length)
+        itemClick(itemList.value.list[0]);
+};
+const itemSearchUp = () => {
+    if (!itemList.value.list.length || !activePlayer.value || !activeSlot.value)
+        return;
+    let current = activePlayer.value.loadout[activeSlot.value].item_id;
+    if (!current)
+        return;
+    let index = itemList.value.list.findIndex(i => i.id == current);
+    activePlayer.value.loadout[activeSlot.value].item_id = itemList.value.list[(index+itemList.value.list.length-1)%itemList.value.list.length].id;
+};
+const itemSearchDown = () => {
+    if (!itemList.value.list.length || !activePlayer.value || !activeSlot.value)
+        return;
+    let current = activePlayer.value.loadout[activeSlot.value].item_id;
+    if (!current)
+        return itemSearchEnter();
+    let index = itemList.value.list.findIndex(i => i.id == current);
+    activePlayer.value.loadout[activeSlot.value].item_id = itemList.value.list[(index+1)%itemList.value.list.length].id;
+};
 const itemClick = (item) => {
     if (!activePlayer.value || !activeSlot.value)
         return;
@@ -1481,6 +1565,7 @@ const importDeserialize = (keys, data, ref) => {
 /*
  * Export UI
  */
+const importMessage = ref(null);
 const exportType = ref("raid");
 const exportTypeOptions = computed(() => {
     let options = [{value: "raid", title: "Raid"}];
@@ -1711,21 +1796,25 @@ const importString = (str) => {
     }
 
     // TODO: External import sources
-    if (type == "60up") {
+    try {
+        if (type == "60up") {
+            importSixtyUpgrades(data);
+            return true;
+        }
+        else if (type == "wse") {
+            importWSE(data);
+            return true;
+        }
+        else if (type == "wcl") {
 
-    }
-    else if (type == "wse") {
-
-    }
-    else if (type == "wcl") {
-
-    }
-    else if (type == "native") {
-        try {
+        }
+        else if (type == "native") {
             importNativeString(str);
             return true;
         }
-        catch (e) {}
+    }
+    catch(e) {
+        console.error(e);
     }
 
     // No matching imports
@@ -1755,6 +1844,113 @@ const importNative = (data) => {
     else {
         throw "Invalid export type";
     }
+};
+const importSixtyUpgrades = (data) => {
+    if (!data.items)
+        throw("No items found");
+
+    let player = defaultPlayer();
+    player.name = _.get(data, "character.name");
+    player.race = _.capitalize(_.get(data, "character.race", "Undead"));
+
+    let convertSlot = (slot) => {
+        slot = slot.toLowerCase();
+        slot = slot.replace("finger_", "finger");
+        slot = slot.replace("trinket_", "trinket");
+        slot = slot.replace("shoulders", "shoulder");
+        slot = slot.replace("wrists", "wrist");
+        return player.loadout.hasOwnProperty(slot) ? slot : null;
+    };
+
+    let errors = [];
+
+    for (let _item of data.items) {
+        let slot = convertSlot(_item.slot);
+        let id = _item.id;
+        if (_item.hasOwnProperty("suffixId"))
+            id+= ":"+_item.suffixId;
+        let item = getItem(slot, id);
+        if (!item)
+            item = items.gear[loadoutSlotToItemSlot(slot)].find(i => i.title == _item.name);
+        if (!item) {
+            player.loadout[slot].item_id = null;
+            errors.push("Could not find item: "+_item.name);
+            continue;
+        }
+
+        let enchant = null;
+        if (_item.enchant) {
+            if (_item.enchant.id)
+                enchant = items.enchants[slot].find(e => e.enchantment_id == _item.enchant.id);
+            if (!enchant && _item.enchant.spellId)
+                enchant = items.enchants[slot].find(e => e.id == _item.enchant.spellId);
+            if (!enchant)
+                errors.push("Could not find enchant: "+_item.enchant.name);
+        }
+
+        player.loadout[slot].item_id = item.id;
+        player.loadout[slot].enchant_id = enchant ? enchant.id : null;
+    }
+
+    if (data.talents && data.talents.length) {
+        let flatTree = talentTree.trees.reduce((acc, t) => [...acc, ...t.talents.rows.flat()], []);
+        player.talents = baseTalents();
+        for (let _talent of data.talents) {
+            let index = flatTree.findIndex(t => t.spellIds.indexOf(_talent.spellId) != -1);
+            if (index == -1)
+                errors.push("Could not find talent: "+_talent.name);
+            else
+                player.talents[index] = _talent.rank;
+        }
+    }
+
+    playerModel.value = player;
+    importMessage.value = errors.join("<br>");
+    playerImport.value.open(true);
+};
+const importWSE = (data) => {
+    if (!data.gear || !data.gear.items)
+        throw("No items found");
+
+    let player = defaultPlayer();
+    let slots = loadoutSlots();
+    let errors = [];
+
+    for (let i in data.gear.items) {
+        let _item = data.gear.items[i];
+        if (!_item)
+            continue;
+        let slot = slots[i];
+        let item = getItem(slot, _item.id);
+        if (!item) {
+            player.loadout[slot].item_id = null;
+            errors.push("Could not find item: "+_item.id);
+            continue;
+        }
+
+        let enchant = null;
+        if (_item.enchant) {
+            if (_item.enchant.id)
+                enchant = items.enchants[slot].find(e => e.enchantment_id == _item.enchant);
+            if (!enchant)
+                errors.push("Could not find enchant: "+_item.enchant);
+        }
+
+        player.loadout[slot].item_id = item.id;
+        player.loadout[slot].enchant_id = enchant ? enchant.id : null;
+    }
+
+    if (data.race)
+        player.race = _.capitalize(data.race);
+    if (raceFaction(player.race) != activeRaid.value.faction)
+        player.race = convertRace(player.race);
+
+    if (data.talents)
+        player.talents = parseWowheadTalents(data.talents);
+
+    playerModel.value = player;
+    importMessage.value = errors.join("<br>");
+    playerImport.value.open(true);
 };
 
 /*
@@ -2244,7 +2440,7 @@ onMounted(() => {
                                 </div>
                             </div>
                             <div class="form-item">
-                                <checkbox label="Sync buffs">
+                                <checkbox label="Sync buffs" tip="Sync buffs between all players">
                                     <input type="checkbox" v-model="activeRaid._sync_buffs" @change="onSyncBuffs">
                                 </checkbox>
                             </div>
@@ -2389,7 +2585,28 @@ onMounted(() => {
 
                     <div class="itemlist" v-if="activeSlot && activeGearType">
                         <div class="search">
-                            <input type="text" class="search-q" v-model="itemSearch" ref="itemSearchInput" placeholder="Search..." autofocus>
+                            <input
+                                type="text"
+                                class="search-q"
+                                v-model="itemSearch"
+                                ref="itemSearchInput"
+                                placeholder="Search..."
+                                @keydown.enter="itemSearchEnter"
+                                @keydown.up="itemSearchUp"
+                                @keydown.down="itemSearchDown"
+                                @keydown.esc="itemSearch = ''"
+                                autofocus
+                            >
+                            <div class="keyboard-help" @click="itemSearchInput.focus()">
+                                <div class="title">
+                                    <micon icon="keyboard" />
+                                </div>
+                                <div class="drop">
+                                    <div><span>Esc:</span> <span>Clear search</span></div>
+                                    <div><span>Enter:</span> <span>Equip first item in the list</span></div>
+                                    <div><span>Up/Down:</span> <span>Equip previous/next item in the list</span></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="items">
                             <table v-if="itemList.list">
@@ -2458,9 +2675,15 @@ onMounted(() => {
 
                 <div class="talents" v-if="activeTab == 'talents' && activePlayer">
                     <div class="import">
+                        <select-simple
+                            v-model="talentPreset"
+                            :options="talentPresetOptions"
+                            placeholder="Select preset..."
+                            @input="setTalentPreset"
+                        />
                         <input type="text" placeholder="Paste URL from wowhead to import" v-model="talentImport" @input="importTalents">
                     </div>
-                    <talent-calculator v-model="activePlayer.talents" />
+                    <talent-calculator v-model="activePlayer.talents" :level="activePlayer.level" />
                 </div>
 
                 <div class="rotation" v-if="activeTab == 'rotation' && activePlayer">
@@ -2532,7 +2755,7 @@ onMounted(() => {
                     <div class="form-box large">
                         <div class="title">Import</div>
                         <div class="form-item">
-                            <textarea v-model="importData" placeholder="Paste import string here"></textarea>
+                            <textarea v-model="importData" placeholder="Supported formats: MageSim, Sixtyupgrades, WowSimsExporter"></textarea>
                         </div>
                         <div class="buttons">
                             <button class="btn btn-primary" @click="importSubmit">Import</button>
@@ -2686,8 +2909,20 @@ onMounted(() => {
             </div>
         </div>
 
+        <div class="notifications">
+            <div
+                class="notification"
+                :class="[_.get(notification, 'class', null)]"
+                v-for="notification in notifications"
+            >
+                <div class="title" v-if="notification.title" v-html="notification.title"></div>
+                <div class="text" v-if="notification.text" v-html="notification.text"></div>
+            </div>
+        </div>
+
         <spotlight ref="raidEdit" class="small" v-slot="{ close }">
             <div class="default raid-edit">
+                <div class="form-title">Create raid</div>
                 <div class="form-item">
                     <label>Name</label>
                     <input type="text" v-model="raidModel.name" @keydown.enter="updateRaid">
@@ -2695,6 +2930,10 @@ onMounted(() => {
                 <div class="form-item">
                     <label>Faction</label>
                     <select-simple v-model="raidModel.faction" :options="factionOptions" />
+                </div>
+                <div class="form-item">
+                    <label>Copy from</label>
+                    <select-simple v-model="raidModelCopy" :options="raidCopyOptions" empty-option="None" />
                 </div>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updateRaid">Save raid</button>
@@ -2705,6 +2944,7 @@ onMounted(() => {
 
         <spotlight ref="playerEdit" class="small">
             <div class="default player-edit">
+                <div class="form-title">Create player</div>
                 <div class="form-item">
                     <label>Name</label>
                     <input type="text" v-model="playerModel.name" @keydown.enter="updatePlayer">
@@ -2744,6 +2984,7 @@ onMounted(() => {
                         <input type="text" v-model="playerModel.name" @keydown.enter="updatePlayer">
                     </div>
                 </template>
+                <div class="import-message" v-if="importMessage" v-html="importMessage"></div>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updatePlayer">Save player</button>
                 </div>

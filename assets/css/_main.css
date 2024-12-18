@@ -456,14 +456,61 @@ body {
 
                 > .search {
                     position: absolute;
-                    left: 0;
-                    top: 0;
-                    right: 0;
-                    padding: 30px 30px 20px;
+                    left: 30px;
+                    top: 30px;
+                    right: 30px;
                     background: var(--color-bg1);
 
                     .search-q {
-                        width: 50%;
+                        float: left;
+                        width: 400px;
+                        max-width: calc(100% - 100px);
+                    }
+
+                    .keyboard-help {
+                        position: relative;
+                        float: left;
+                        padding: 0 10px 0 20px;
+                        user-select: none;
+
+                        .title {
+                            line-height: 38px;
+                            color: var(--color-grey);
+                            cursor: default;
+
+                            .micon {
+                                margin-right: 5px;
+                            }
+                        }
+
+                        .drop {
+                            display: none;
+                            position: absolute;
+                            right: 0;
+                            top: 100%;
+                            margin-top: 10px;
+                            background: var(--color-bg2);
+                            border-radius: 2px;
+                            border: 1px solid var(--color-stroke-light);
+                            padding: 20px;
+                            white-space: nowrap;
+                            animation: fade 0.2s ease;
+                            z-index: 3;
+
+                            span:first-child {
+                                font-weight: 600;
+                                color: var(--color-primary);
+                            }
+                        }
+
+                        &:hover {
+                            .title {
+                                color: #fff;
+                            }
+                            .drop {
+                                display: block;
+                            }
+                        }
                     }
                 }
 
@@ -512,7 +559,17 @@ body {
             padding: 30px;
 
             > .import {
+                @mixin clearfix;
                 margin-bottom: 20px;
+
+                > * {
+                    float: left;
+                    margin-right: 10px;
+                }
+
+                .select-simple {
+                    width: 200px;
+                }
 
                 input {
                     width: 300px;
@@ -1077,4 +1134,36 @@ button {
 .combat-chart .chart canvas {
     height: 50vh;
     min-height: 400px;
+}
+
+.import-message {
+    margin-top: 20px;
+}
+
+.notifications {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 20;
+
+    .notification {
+        padding: 20px;
+        background: var(--color-bg-faded);
+        border-radius: 2px;
+        animation: fade 0.2s ease, moveInFromBelow 0.2s ease;
+
+        &.danger,
+        &.error {
+            color: var(--color-danger);
+        }
+
+        .title {
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .title ~ .text {
+            margin-top: 15px;
+        }
+    }
 }
