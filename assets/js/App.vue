@@ -732,6 +732,7 @@ const selectRaid = (id) => {
 const raidEdit = ref();
 const raidModel = ref(defaultRaid());
 const raidModelCopy = ref(null);
+const raidIsImport = ref(false);
 const raidCopyOptions = computed(() => {
     if (!activeRaid.value)
         return [];
@@ -747,6 +748,7 @@ const createRaidOpen = () => {
     raidModel.value = defaultRaid();
     raidModel.value.name = "";
     raidSelectOpen.value = false;
+    raidIsImport.value = false;
     raidEdit.value.open(true);
 };
 const updateRaid = () => {
@@ -1664,6 +1666,10 @@ const importNative = (data) => {
     if (data.exp == "raid") {
         let raid = importRaidData(data.data);
         raidModel.value = raid;
+        raidIsImport.value = true;
+        raidModelCopy.value = null;
+        if (raids.value.find(r => r.name == raidModel.value.name))
+            raidModel.value.name+= " copy";
         raidEdit.value.open(true);
     }
     else if (data.exp == "player") {
@@ -2801,7 +2807,8 @@ onMounted(() => {
 
         <spotlight ref="raidEdit" class="small" v-slot="{ close }">
             <div class="default raid-edit">
-                <div class="form-title">Create raid</div>
+                <div class="form-title" v-if="raidIsImport">Import raid</div>
+                <div class="form-title" v-else>Create raid</div>
                 <div class="form-item">
                     <label>Name</label>
                     <input type="text" v-model="raidModel.name" @keydown.enter="updateRaid">
@@ -2810,7 +2817,7 @@ onMounted(() => {
                     <label>Faction</label>
                     <select-simple v-model="raidModel.faction" :options="factionOptions" />
                 </div>
-                <div class="form-item">
+                <div class="form-item" v-if="!raidIsImport">
                     <label>Copy from</label>
                     <select-simple v-model="raidModelCopy" :options="raidCopyOptions" empty-option="None" />
                 </div>
