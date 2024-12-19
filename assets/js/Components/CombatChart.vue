@@ -3,10 +3,9 @@ import {
   Chart,
   CategoryScale,
   LinearScale,
-  // PointElement,
+  PointElement,
   LineElement,
   Title,
-  // Tooltip,
   Legend
 } from "chart.js";
 import { Line } from "vue-chartjs";
@@ -15,10 +14,9 @@ import { ref, onMounted, watch } from "vue";
 Chart.register(
   CategoryScale,
   LinearScale,
-  // PointElement,
+  PointElement,
   LineElement,
   Title,
-  // Tooltip,
   Legend
 );
 
