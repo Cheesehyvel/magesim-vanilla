@@ -103,7 +103,7 @@ pub fn run_multiple(config: Config, iterations: i32) -> SimulationsResult {
         }
 
         if i == 1 {
-            result.players = r.players.clone();
+            result.players.clone_from(&r.players);
         } else {
             for (j, pr) in r.players.iter().enumerate() {
                 result.players[j].dps+= (pr.dps - result.players[j].dps) / (i as f64);
@@ -120,7 +120,7 @@ fn spawn_player(config: Config, id: i32) -> Box<dyn Unit> {
     let index = (id as usize) - 1;
 
     player.id = id;
-    player.name = config.players[index].name.clone();
+    player.name.clone_from(&config.players[index].name);
     player.level = config.players[index].level;
     player.stats = config.players[index].stats;
 
@@ -343,7 +343,7 @@ impl Sim {
                 let mut ev = Event::new(EventType::Idle);
                 ev.event_type = EventType::Idle;
                 ev.t = event.t;
-                ev.text = event.text.clone();
+                ev.text.clone_from(&event.text);
                 ev.unit_id = event.unit_id;
                 self.push_event(ev);
             }
@@ -532,9 +532,9 @@ impl Sim {
 
         if event.is_main_event {
             if spell.is_channeled && spell.this_cast_time > 0.0 {
-                self.push_idle(event.unit_id, spell.this_cast_time, String::from(""));
+                self.push_idle(event.unit_id, spell.this_cast_time, String::new());
             } else {
-                self.push_idle(event.unit_id, 0.0, String::from(""));
+                self.push_idle(event.unit_id, 0.0, String::new());
             }
         }
     }
@@ -556,7 +556,6 @@ impl Sim {
 
         if instance.dmg > 0.0 && event.unit_id != 0 {
             self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_dmg(event.unit_id, instance.dmg.round() as u64);
-
             if instance.spell.id == spell::IGNITE {
                 self.targets.get_mut(&event.target_id).expect("TARGET_NOT_FOUND").add_ignite_dmg(event.unit_id, instance.dmg.round() as u64);
             }
@@ -615,10 +614,10 @@ impl Sim {
 
         self.units.get_mut(&event.unit_id).unwrap().mod_mana(event.mana, self.t);
 
-        if event.text.len() > 0 {
-            self.log_value(log::LogType::Mana, event.text.clone(), event.unit_id, event.mana);
-        } else {
+        if event.text.is_empty() {
             self.log_value(log::LogType::Mana, String::from("Mana"), event.unit_id, event.mana);
+        } else {
+            self.log_value(log::LogType::Mana, event.text.clone(), event.unit_id, event.mana);
         }
     }
 
@@ -648,12 +647,11 @@ impl Sim {
         };
 
         let old_stacks = auras.stacks(aura.id, aura.owner_id);
+        let stacks = auras.add(aura.clone());
 
         if old_stacks < 1 {
             aura.t_gained = self.t;
         }
-
-        let stacks = auras.add(aura.clone());
 
         if old_stacks < 1 || aura.stack_refresh {
             aura.t_expires = self.t + aura.duration;
@@ -919,7 +917,6 @@ impl Sim {
 
             instance.resist = self.spell_dmg_resist(unit_id, instance);
             instance.dmg-= instance.resist;
-
             instance.dmg = instance.dmg.round();
         }
     }
@@ -928,7 +925,6 @@ impl Sim {
         if instance.spell.can_miss && self.rng.gen_range(0.0..=100.0) > self.spell_hit_chance(unit_id, &instance.spell, target_id) {
             return spell::SpellResult::Miss;
         }
-
         if instance.spell.can_crit && self.rng.gen_range(0.0..=100.0) <= self.spell_crit_chance(unit_id, &instance.spell, target_id) {
             return spell::SpellResult::Crit;
         }
@@ -1014,9 +1010,7 @@ impl Sim {
             dmg*= 1.0 + 0.03 * auras.stacks(aura::FIRE_VULNERABILITY, 0) as f64;
         }
 
-        if self.config.curse_of_elements && (spell.school == common::School::Fire || spell.school == common::School::Frost) {
-            dmg*= 1.1;
-        } else if self.config.curse_of_shadows && (spell.school == common::School::Arcane || spell.school == common::School::Shadow) {
+        if self.config.curse_of_elements && (spell.school == common::School::Fire || spell.school == common::School::Frost) || self.config.curse_of_shadows && (spell.school == common::School::Arcane || spell.school == common::School::Shadow) {
             dmg*= 1.1;
         }
 
@@ -1038,10 +1032,10 @@ impl Sim {
         (base - 1.0) * multi + 1.0
     }
 
-    /**
+    /*
      * Source for resistance based mitigation
      * May not match exactly, but it is the best estimate we got
-     * https://royalgiraffe.github.io/legacy-sim/
+     * <https://royalgiraffe.github.io/legacy-sim/>
      */
     fn spell_dmg_resist(&mut self, unit_id: i32, instance: &spell::SpellInstance) -> f64 {
         if instance.spell.is_binary {
@@ -1074,7 +1068,6 @@ impl Sim {
             for (j, percentage) in percentages.iter_mut().enumerate() {
                 *percentage = (segments[i][j] * (1.0 - fraction) + segments[i+1][j] * fraction).round();
             }
-
             if ratio < 2.0/3.0 - 0.000001 {
                 percentages[0] = percentages[0].max(1.0);
             }

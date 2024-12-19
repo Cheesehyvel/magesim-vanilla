@@ -87,7 +87,6 @@ impl Auras {
         }
 
         self.add_stacks(id, owner_id, add);
-
         self.stacks(id, owner_id)
     }
 
@@ -114,7 +113,6 @@ impl Auras {
 
             if add != 0 {
                 self.stats+= aura.stats * add.into();
-
                 if stacks + add == 0 {
                     self.auras.retain(|a| a.id != id || !a.is_shared && a.owner_id != owner_id);
                 } else {
@@ -138,7 +136,6 @@ impl Auras {
         if let Some(aura) = some_aura {
             return aura.stacks;
         }
-
         0
     }
 
@@ -191,7 +188,6 @@ pub fn chaos_fire() -> Aura {
 pub fn chromatic_infusion() -> Aura {
     let mut aura = Aura::new(CHROMATIC_INFUSION, String::from("Chromatic Infusion"), 15.0);
     aura.stats.sp = 100.0;
-
     aura
 }
 
@@ -202,7 +198,6 @@ pub fn clearcast() -> Aura {
 pub fn combustion() -> Aura {
     let mut aura = Aura::new(COMBUSTION, String::from("Combustion"), 1000.0);
     aura.max_stacks = 20;
-
     aura
 }
 
@@ -210,21 +205,18 @@ pub fn enigmas_answer() -> Aura {
     let mut aura = Aura::new(ENIGMAS_ANSWER, String::from("Enigma's Answer"), 20.0);
     aura.max_stacks = 4;
     aura.stats.hit = 5.0;
-
     aura
 }
 
 pub fn ephemeral_power() -> Aura {
     let mut aura = Aura::new(EPHEMERAL_POWER, String::from("Ephemeral Power"), 15.0);
     aura.stats.sp = 175.0;
-
     aura
 }
 
 pub fn essence_of_sapphiron() -> Aura {
     let mut aura = Aura::new(ESSENCE_OF_SAPPHIRON, String::from("Essence of Sapphiron"), 20.0);
     aura.stats.sp = 130.0;
-
     aura
 }
 
@@ -235,7 +227,6 @@ pub fn evocation() -> Aura {
 pub fn fire_vulnerability() -> Aura {
     let mut aura = Aura::new(FIRE_VULNERABILITY, String::from("Fire Vulnerability"), 30.0);
     aura.max_stacks = 5;
-
     aura
 }
 
@@ -254,7 +245,6 @@ pub fn mind_quickening() -> Aura {
 pub fn nat_pagle() -> Aura {
     let mut aura = Aura::new(NAT_PAGLE, String::from("Pagle's Broken Reel"), 15.0);
     aura.stats.hit = 10.0;
-
     aura
 }
 
@@ -266,7 +256,6 @@ pub fn obsidian_insight() -> Aura {
     let mut aura = Aura::new(OBSIDIAN_INSIGHT, String::from("Obsidian Insight"), 30.0);
     aura.stats.sp = 50.0;
     aura.stats.spell_penetration = 100.0;
-
     aura
 }
 
@@ -284,13 +273,11 @@ pub fn unstable_power() -> Aura {
     aura.stack_increment = -1;
     aura.stack_refresh = false;
     aura.stats.sp = 17.0;
-
     aura
 }
 
 pub fn winters_chill() -> Aura {
     let mut aura = Aura::new(WINTERS_CHILL, String::from("Winter's Chill"), 15.0);
     aura.max_stacks = 5;
-
     aura
 }

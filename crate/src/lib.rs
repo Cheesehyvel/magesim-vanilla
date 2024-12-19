@@ -36,7 +36,9 @@ const MANA_TICK_T: f64 = 2.0;
  */
 
 #[wasm_bindgen]
-pub fn run_simulation(cfg: JsValue) -> JsValue {
+#[must_use]
+/// # Panics
+pub fn run_simulation(cfg: &JsValue) -> JsValue {
     common::set_panic_hook();
 
     let config = cfg.into_serde().unwrap();
@@ -46,7 +48,9 @@ pub fn run_simulation(cfg: JsValue) -> JsValue {
 }
 
 #[wasm_bindgen]
-pub fn run_simulations(cfg: JsValue, iterations: i32) -> JsValue {
+#[must_use]
+/// # Panics
+pub fn run_simulations(cfg: &JsValue, iterations: i32) -> JsValue {
     common::set_panic_hook();
 
     let config = cfg.into_serde().unwrap();

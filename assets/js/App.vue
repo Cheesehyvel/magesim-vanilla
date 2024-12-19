@@ -636,9 +636,9 @@ const simStats = (player) => {
     if (player.elixir_frost_power)
         stats.sp_frost+= 15;
     if (player.elixir_greater_arcane)
-        stats.sp_arcane+= 35;
+        stats.sp+= 35;
     else if (player.elixir_arcane)
-        stats.sp_arcane+= 20;
+        stats.sp+= 20;
 
     if (player.food == common.foods.RUNN_TUM)
         stats.int+= 10;
@@ -2210,7 +2210,7 @@ onMounted(() => {
                                     <label>
                                         <input type="checkbox" v-model="activeRaid.config.curse_of_elements">
                                         <wowicon icon="curse_of_elements" />
-                                        <tooltip>Curse of the Elements</tooltip>
+                                        <tooltip position="topright">Curse of the Elements</tooltip>
                                     </label>
                                     <label>
                                         <input type="checkbox" v-model="activeRaid.config.curse_of_shadows">

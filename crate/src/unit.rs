@@ -120,7 +120,7 @@ pub trait Unit {
 
     fn mana_event_at(&self, mana: f64, text: String, t: f64) -> Event {
         Event {
-            t: t,
+            t,
             event_type: EventType::ManaGain,
             unit_id: self.id(),
             text,

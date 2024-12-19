@@ -56,7 +56,6 @@ impl Cooldowns {
     pub fn has(&self, id: i32) -> bool {
         self.cooldowns.contains_key(&id)
     }
-
 }
 
 

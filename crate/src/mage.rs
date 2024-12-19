@@ -85,9 +85,9 @@ pub struct Mage {
     pub auras: aura::Auras,
     pub cooldowns: cooldown::Cooldowns,
     pub rng: ChaCha8Rng,
-    _apl_sequence: VecDeque<apl::AplAction>,
-    _combustion: i32,
-    _mana_gems: i32,
+    apl_sequence: VecDeque<apl::AplAction>,
+    combustion: i32,
+    mana_gems: i32,
 }
 
 impl Mage {
@@ -105,9 +105,9 @@ impl Mage {
             auras: aura::Auras::default(),
             cooldowns: cooldown::Cooldowns::default(),
             rng: ChaCha8Rng::from_entropy(),
-            _apl_sequence: VecDeque::new(),
-            _combustion: 0,
-            _mana_gems: 0,
+            apl_sequence: VecDeque::new(),
+            combustion: 0,
+            mana_gems: 0,
         }
     }
 
@@ -143,8 +143,8 @@ impl Mage {
         let mut event = Event::new(EventType::None);
 
         // Pending action sequence
-        while self._apl_sequence.len() > 0 {
-            let action = self._apl_sequence.pop_front().unwrap();
+        while !self.apl_sequence.is_empty() {
+            let action = self.apl_sequence.pop_front().unwrap();
             event = self.apl_action(&action, t, targets);
             if event.event_type != EventType::None {
                 return event;
@@ -152,7 +152,7 @@ impl Mage {
         }
 
         // Go through APL from the top
-        for apl_item in self.player_config().apl.items.iter() {
+        for apl_item in &self.player_config().apl.items {
             if self.apl_check_condition(&apl_item.condition, t, targets) {
                 event = self.apl_action(&apl_item.action, t, targets);
                 if event.event_type != EventType::None {
@@ -163,14 +163,14 @@ impl Mage {
 
         // Action sequence
         if event.event_type == EventType::Sequence {
-            if event.apl_sequence.len() > 0 {
+            if !event.apl_sequence.is_empty() {
                 // Move sequence to state
                 while let Some(action) = event.apl_sequence.pop_front() {
-                    self._apl_sequence.push_back(action);
+                    self.apl_sequence.push_back(action);
                 }
                 // Do first valid action in sequence
-                while self._apl_sequence.len() > 0 {
-                    let action = self._apl_sequence.pop_front().unwrap();
+                while !self.apl_sequence.is_empty() {
+                    let action = self.apl_sequence.pop_front().unwrap();
                     let ev = self.apl_action(&action, t, targets);
                     if ev.event_type != EventType::None {
                         return ev;
@@ -189,7 +189,7 @@ impl Mage {
         match apl_action.key {
             apl::AplActionKey::Sequence => {
                 event.event_type = EventType::Sequence;
-                for action in apl_action.sequence.iter() {
+                for action in &apl_action.sequence {
                     event.apl_sequence.push_back(action.clone());
                 }
                 return event
@@ -337,7 +337,9 @@ impl Mage {
                     event.spell = Some(self.this_spell(spell::unstable_power()));
                 }
             }
-            _ => { return Event::new(EventType::None); }
+            apl::AplActionKey::None => {
+                return Event::new(EventType::None);
+            }
         }
         if event.spell.is_none() {
             event.event_type = EventType::None;
@@ -350,16 +352,16 @@ impl Mage {
     fn apl_check_condition(&self, apl_condition: &apl::AplCondition, t: f64, targets: &HashMap<i32, Target>) -> bool {
         match apl_condition.condition_type {
             apl::AplConditionType::And => {
-                for condition in apl_condition.conditions.iter() {
-                    if !self.apl_check_condition(&condition, t, targets) {
+                for condition in &apl_condition.conditions {
+                    if !self.apl_check_condition(condition, t, targets) {
                         return false;
                     }
                 }
                 true
             }
             apl::AplConditionType::Or => {
-                for condition in apl_condition.conditions.iter() {
-                    if self.apl_check_condition(&condition, t, targets) {
+                for condition in &apl_condition.conditions {
+                    if self.apl_check_condition(condition, t, targets) {
                         return true;
                     }
                 }
@@ -408,7 +410,7 @@ impl Mage {
                 }
                 self.apl_value(&apl_condition.values[0], t, targets) == 1.0
             }
-            _ => {
+            apl::AplConditionType::None => {
                 true
             }
         }
@@ -416,9 +418,6 @@ impl Mage {
 
     fn apl_value(&self, apl_value: &apl::AplValue, t: f64, targets: &HashMap<i32, Target>) -> f64 {
         match apl_value.value_type {
-            apl::AplValueType::None => {
-                0.0
-            }
             apl::AplValueType::Const => {
                 apl_value.vfloat
             }
@@ -496,21 +495,21 @@ impl Mage {
                     0.0
                 }
             }
-            apl::AplValueType::SpellTravelTime => {
-                0.0 // TODO: Spell
-            }
-            apl::AplValueType::SpellCastTime => {
-                0.0 // TODO: Spell
-            }
-            apl::AplValueType::SpellTravelCastTime => {
-                0.0 // TODO: Spell
-            }
-            apl::AplValueType::SpellManaCost => {
-                0.0 // TODO: Spell
-            }
-            apl::AplValueType::SpellCanCast => {
-                0.0 // TODO: Spell
-            }
+            // apl::AplValueType::SpellTravelTime => {
+            //     0.0 // TODO: Spell
+            // }
+            // apl::AplValueType::SpellCastTime => {
+            //     0.0 // TODO: Spell
+            // }
+            // apl::AplValueType::SpellTravelCastTime => {
+            //     0.0 // TODO: Spell
+            // }
+            // apl::AplValueType::SpellManaCost => {
+            //     0.0 // TODO: Spell
+            // }
+            // apl::AplValueType::SpellCanCast => {
+            //     0.0 // TODO: Spell
+            // }
             apl::AplValueType::SimTime => {
                 t
             }
@@ -528,6 +527,9 @@ impl Mage {
             }
             apl::AplValueType::SimTargetLevel => {
                 self.config.as_ref().unwrap().target_level as f64
+            }
+            _ => {
+                0.0
             }
         }
     }
@@ -847,20 +849,20 @@ impl Unit for Mage {
                         match spell.id {
                             // Mana gems
                             spell::MANA_GEM => {
-                                if self._mana_gems == 0 {
+                                if self.mana_gems == 0 {
                                     let fval = self.rng.gen_range(1000..=1200) as f64;
                                     events.push(self.mana_event(fval, String::from("Mana Ruby")));
-                                } else if self._mana_gems == 1 {
+                                } else if self.mana_gems == 1 {
                                     let fval = self.rng.gen_range(775..=925) as f64;
                                     events.push(self.mana_event(fval, String::from("Mana Citrine")));
-                                } else if self._mana_gems == 2 {
+                                } else if self.mana_gems == 2 {
                                     let fval = self.rng.gen_range(550..=650) as f64;
                                     events.push(self.mana_event(fval, String::from("Mana Jade")));
-                                } else if self._mana_gems == 3 {
+                                } else if self.mana_gems == 3 {
                                     let fval = self.rng.gen_range(375..=425) as f64;
                                     events.push(self.mana_event(fval, String::from("Mana Agate")));
                                 }
-                                self._mana_gems+= 1;
+                                self.mana_gems+= 1;
                                 return events;
                             }
 
@@ -949,9 +951,9 @@ impl Unit for Mage {
                             spell::ARCANE_POWER => {
                                 events.push(self.aura_event(aura::arcane_power(), 0));
                             }
-                            spell::COLD_SNAP => {
+                            // spell::COLD_SNAP => {
                                 // No spells worth resetting lmao
-                            }
+                            // }
                             spell::COMBUSTION => {
                                 events.push(self.aura_event(aura::combustion(), 0));
                             }
@@ -1051,9 +1053,9 @@ impl Unit for Mage {
 
                             if self.auras.has_any(aura::COMBUSTION) && instance.spell.school == School::Fire {
                                 if instance.result == spell::SpellResult::Crit {
-                                    self._combustion+= 1;
+                                    self.combustion+= 1;
                                 }
-                                if self._combustion == 3 {
+                                if self.combustion == 3 {
                                     events.push(self.aura_expire_event(aura::combustion(), 0));
                                 } else {
                                     events.push(self.aura_event(aura::combustion(), 0));
@@ -1084,7 +1086,7 @@ impl Unit for Mage {
                     let aura = event.aura.as_ref().unwrap();
 
                     if aura.id == aura::COMBUSTION {
-                        self._combustion = 0;
+                        self.combustion = 0;
                     }
                 }
             }
@@ -1108,7 +1110,6 @@ impl Unit for Mage {
     }
 
     fn next_event(&mut self, t: f64, targets: &HashMap<i32, Target>) -> Event {
-        // GCD
         if t < self.t_gcd {
             let mut event = Event::new(EventType::None);
             event.event_type = EventType::Wait;
@@ -1118,18 +1119,5 @@ impl Unit for Mage {
         }
 
         self.apl_next_event(t, targets)
-
-        // let mut event = Event::new(EventType::None);
-        // event.event_type = EventType::CastStart;
-        // event.target_id = 1;
-        // if t < 5.0 {
-        //     event.spell = Some(self.this_spell(spell::scorch()));
-        // } else if !self.cooldowns.has(spell::FIRE_BLAST) {
-        //     event.spell = Some(self.this_spell(spell::fire_blast()));
-        // } else {
-        //     event.spell = Some(self.this_spell(spell::fireball()));
-        // }
-
-        // event
     }
 }

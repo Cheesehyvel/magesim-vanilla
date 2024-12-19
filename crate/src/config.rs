@@ -12,7 +12,6 @@ pub struct PlayerConfig {
     pub talents: Vec<u8>,
     pub items: Vec<i32>,
     pub apl: Apl,
-
     // Buffs
     pub mage_armor: bool,
     pub mana_spring: bool,
@@ -34,11 +33,9 @@ pub struct Config {
     pub distance: i32,
     pub reaction_time: f64,
     pub player_delay: f64,
-
+    pub players: Vec<PlayerConfig>,
     // Debuffs
     pub curse_of_elements: bool,
     pub curse_of_shadows: bool,
     pub judgement_of_wisdom: bool,
-
-    pub players: Vec<PlayerConfig>,
 }

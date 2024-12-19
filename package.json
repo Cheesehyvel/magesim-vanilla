@@ -5,7 +5,8 @@
         "wasm": "wasm-pack build ./crate --target web --release",
         "dev": "vite",
         "build": "vite build",
-        "prod": "wasm-pack build ./crate --target web && vite build"
+        "prod": "wasm-pack build ./crate --target web && vite build",
+        "clippy": "(cd crate/src && cargo clippy)"
     },
     "dependencies": {
         "@vitejs/plugin-vue": "^5.2.1",

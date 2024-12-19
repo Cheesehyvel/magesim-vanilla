@@ -28,6 +28,7 @@
             left: 50%;
             transform: translate3d(-50%, 0, 0);
         }
+        &.position-topright,
         &.position-top {
             bottom: 100%;
             margin-bottom: 5px;
@@ -48,6 +49,9 @@
         &.position-right {
             left: 100%;
             margin-left: 5px;
+        }
+        &.position-topright {
+            left: 0;
         }
     }
 }

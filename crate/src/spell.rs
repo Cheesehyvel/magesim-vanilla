@@ -162,7 +162,6 @@ pub fn arcane_missiles() -> Spell {
 }
 pub fn arcane_missiles_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(ARCANE_MISSILES, String::from("Arcane Missiles"), School::Arcane);
-
     spell.rank = rank;
     spell.coeff = 0.24;
     spell.cast_time = 5.0;
@@ -189,141 +188,116 @@ pub fn arcane_missiles_ranked(rank: i32) -> Spell {
             spell.coeff = 0.132;
         }
     }
-
     spell
 }
 
 // Arcane Potency - Hazza'rah's Charm of Magic
 pub fn arcane_potency() -> Spell {
     let mut spell = Spell::new(ARCANE_POTENCY, String::from("Arcane Potency"), School::Arcane);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Arcane Power
 pub fn arcane_power() -> Spell {
     let mut spell = Spell::new(ARCANE_POWER, String::from("Arcane Power"), School::Arcane);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Berserking
 pub fn berserking() -> Spell {
     let mut spell = Spell::new(BERSERKING, String::from("Berserking"), School::Physical);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Burst of Knowledge
 pub fn burst_of_knowledge() -> Spell {
     let mut spell = Spell::new(BURST_OF_KNOWLEDGE, String::from("Burst of Knowledge"), School::Arcane);
-
     spell.cooldown = 900.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Celestial orb
 pub fn celestial_orb() -> Spell {
     let mut spell = Spell::new(CELESTIAL_ORB, String::from("Celestial Orb"), School::Arcane);
-
     spell.cooldown = 1800.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Chaos Fire - Fire Ruby trinket
 pub fn chaos_fire() -> Spell {
     let mut spell = Spell::new(CHAOS_FIRE, String::from("Chaos Fire"), School::Fire);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Chromatic Infusion - Draconic Infused Emblem
 pub fn chromatic_infusion() -> Spell {
     let mut spell = Spell::new(CHROMATIC_INFUSION, String::from("Chromatic Infusion"), School::Arcane);
-
     spell.cooldown = 75.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Cold Snap
 pub fn cold_snap() -> Spell {
     let mut spell = Spell::new(COLD_SNAP, String::from("Cold Snap"), School::Frost);
-
     spell.cooldown = 600.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Combustion
 pub fn combustion() -> Spell {
     let mut spell = Spell::new(COMBUSTION, String::from("Combustion"), School::Fire);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Ephemeral Power - Talisman of Ephemeral Power
 pub fn ephemeral_power() -> Spell {
     let mut spell = Spell::new(EPHEMERAL_POWER, String::from("Ephemeral Power"), School::Arcane);
-
     spell.cooldown = 90.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Essence of Sapphiron - The Restrained Essence of Sapphiron
 pub fn essence_of_sapphiron() -> Spell {
     let mut spell = Spell::new(ESSENCE_OF_SAPPHIRON, String::from("Essence of Sapphiron"), School::Arcane);
-
     spell.cooldown = 120.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Evocation
 pub fn evocation() -> Spell {
     let mut spell = Spell::new(EVOCATION, String::from("Evocation"), School::Arcane);
-
     spell.cast_time = 8.0;
     spell.cooldown = 480.0;
     spell.is_trigger = true;
     spell.is_channeled = true;
     spell.ticks = 1;
-
     spell
 }
 
@@ -333,7 +307,6 @@ pub fn fireball() -> Spell {
 }
 pub fn fireball_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(FIREBALL, String::from("Fireball"), School::Fire);
-
     spell.rank = rank;
     spell.coeff = 1.0;
     spell.cast_time = 3.5;
@@ -358,12 +331,10 @@ pub fn fireball_ranked(rank: i32) -> Spell {
             spell.cast_time = 1.5;
         }
     }
-
     spell
 }
 pub fn fireball_dot(rank: i32) -> Spell {
     let mut spell = Spell::new(FIREBALL_DOT, String::from("Fireball (dot)"), School::Fire);
-
     spell.is_dot = true;
     spell.can_proc = false;
     spell.can_miss = false;
@@ -396,7 +367,6 @@ pub fn fire_blast() -> Spell {
 }
 pub fn fire_blast_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(FIRE_BLAST, String::from("Fire Blast"), School::Fire);
-
     spell.rank = rank;
     spell.coeff = 0.429;
     spell.cooldown = 8.0;
@@ -422,10 +392,8 @@ pub fn fire_blast_ranked(rank: i32) -> Spell {
 // We put this as a separate spell because it has a separate chance to miss
 pub fn fire_vulnerability() -> Spell {
     let mut spell = Spell::new(FIRE_VULNERABILITY, String::from("Fire Vulnerability"), School::Fire);
-
     spell.can_crit = false;
     spell.gcd = 0.0;
-
     spell
 }
 
@@ -435,7 +403,6 @@ pub fn frostbolt() -> Spell {
 }
 pub fn frostbolt_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(FROSTBOLT, String::from("Frostbolt"), School::Frost);
-
     spell.rank = rank;
     spell.is_binary = true;
     spell.coeff = 0.814; // 3.0 / 3.5 * 0.95
@@ -468,7 +435,6 @@ pub fn frostbolt_ranked(rank: i32) -> Spell {
 // Ignite
 pub fn ignite(dmg: f64) -> Spell {
     let mut spell = Spell::new(IGNITE, String::from("Ignite"), School::Fire);
-
     spell.is_dot = true;
     spell.can_proc = false;
     spell.can_miss = false;
@@ -477,114 +443,93 @@ pub fn ignite(dmg: f64) -> Spell {
     spell.ticks = 2;
     spell.min_dmg = dmg;
     spell.max_dmg = dmg;
-
     spell
 }
 
 // Innervate
 pub fn innervate() -> Spell {
     let mut spell = Spell::new(INNERVATE, String::from("Innervate"), School::Nature);
-
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Mana Gem
 pub fn mana_gem() -> Spell {
     let mut spell = Spell::new(MANA_GEM, String::from("Mana Gem"), School::Arcane);
-
     spell.cooldown = 120.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Mana Infusion - Warmth of Forgiveness
 pub fn mana_infusion() -> Spell {
     let mut spell = Spell::new(MANA_INFUSION, String::from("Mana Infusion"), School::Physical);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Mana Potion
 pub fn mana_potion() -> Spell {
     let mut spell = Spell::new(MANA_POTION, String::from("Mana Potion"), School::Physical);
-
     spell.cooldown = 120.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Mana Tide
 pub fn mana_tide() -> Spell {
     let mut spell = Spell::new(MANA_TIDE, String::from("Mana Tide"), School::Nature);
-
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Mind Quickening - Mind Quickening Gem
 pub fn mind_quickening() -> Spell {
     let mut spell = Spell::new(MIND_QUICKENING, String::from("Mind Quickening"), School::Arcane);
-
     spell.cooldown = 300.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Nat Pagle's Broken Reel
 pub fn nat_pagle() -> Spell {
     let mut spell = Spell::new(NAT_PAGLE, String::from("Pagle's Broken Reel"), School::Arcane);
-
     spell.cooldown = 75.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Obsidian Insight - Eye of Moam
 pub fn obsidian_insight() -> Spell {
     let mut spell = Spell::new(OBSIDIAN_INSIGHT, String::from("Obsidian Insight"), School::Arcane);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Power Infusion
 pub fn power_infusion() -> Spell {
     let mut spell = Spell::new(POWER_INFUSION, String::from("Power Infusion"), School::Holy);
-
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
 // Presence of Mind
 pub fn presence_of_mind() -> Spell {
     let mut spell = Spell::new(PRESENCE_OF_MIND, String::from("Presence of Mind"), School::Arcane);
-
     spell.cooldown = 180.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
@@ -594,7 +539,6 @@ pub fn pyroblast() -> Spell {
 }
 pub fn pyroblast_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(PYROBLAST, String::from("Pyroblast"), School::Fire);
-
     spell.rank = rank;
     spell.coeff = 1.0;
     spell.cast_time = 6.0;
@@ -612,12 +556,10 @@ pub fn pyroblast_ranked(rank: i32) -> Spell {
             spell.mana_cost = 125.0;
         }
     }
-
     spell
 }
 pub fn pyroblast_dot(rank: i32) -> Spell {
     let mut spell = Spell::new(PYROBLAST_DOT, String::from("Pyroblast (dot)"), School::Fire);
-
     spell.is_dot = true;
     spell.can_proc = false;
     spell.can_miss = false;
@@ -643,11 +585,9 @@ pub fn pyroblast_dot(rank: i32) -> Spell {
 // Robe of the Archmage
 pub fn robe_archmage() -> Spell {
     let mut spell = Spell::new(ROBE_ARCHMAGE, String::from("Robe of the Archmage"), School::Arcane);
-
     spell.cooldown = 300.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
 
@@ -657,7 +597,6 @@ pub fn scorch() -> Spell {
 }
 pub fn scorch_ranked(rank: i32) -> Spell {
     let mut spell = Spell::new(SCORCH, String::from("Scorch"), School::Fire);
-
     spell.rank = rank;
     spell.coeff = 0.429;
     spell.cast_time = 1.5;
@@ -681,10 +620,8 @@ pub fn scorch_ranked(rank: i32) -> Spell {
 // Unstable Power - Zandalarian Hero Charm
 pub fn unstable_power() -> Spell {
     let mut spell = Spell::new(UNSTABLE_POWER, String::from("Unstable Power"), School::Physical);
-
     spell.cooldown = 120.0;
     spell.is_trigger = true;
     spell.gcd = 0.0;
-
     spell
 }
