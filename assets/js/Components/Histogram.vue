@@ -5,7 +5,8 @@ import {
   LinearScale,
   BarElement,
   Title,
-  Tooltip
+  Tooltip,
+  Legend
 } from "chart.js";
 import { Bar } from "vue-chartjs";
 import { ref, onMounted, watch, toRaw } from "vue";
@@ -15,7 +16,8 @@ Chart.register(
   LinearScale,
   BarElement,
   Title,
-  Tooltip
+  Tooltip,
+  Legend
 );
 
 const props = defineProps(["data"]);
@@ -37,6 +39,7 @@ const makeChart = () => {
         labels: [],
         datasets: [{
             data: [],
+            label: "Iterations",
             backgroundColor: "#08f",
             borderColor: "#05c",
             borderWidth: 1,
@@ -44,6 +47,9 @@ const makeChart = () => {
         }],
     };
     let options = {
+        legend: {
+            display: false,
+        },
         maintainAspectRatio: false,
         scales: {
             x: {
@@ -77,6 +83,9 @@ const makeChart = () => {
                         return context.parsed.y+" iterations";
                     }
                 }
+            },
+            legend: {
+                display: false,
             }
         }
     };

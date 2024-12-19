@@ -169,6 +169,9 @@ var gear = {
         { id: 4696, title: "Lapidis Tankard of Tidesippe", ilvl: 59, int: 5, spi: 16, q: "rare" },
         { id: 18536, title: "Milli's Lexicon", ilvl: 59, int: 7, mp5: 6, q: "rare" },
 
+        { id: "10796:1813", title: "Drakestone of Arcane Wrath", ilvl: 54, sp: 7, sp_arcane: 21, q: "rare" },
+        { id: "10796:1889", title: "Drakestone of Fiery Wrath", ilvl: 54, sp: 7, sp_fire: 21, q: "rare" },
+        { id: "10796:1965", title: "Drakestone of Frozen Wrath", ilvl: 54, sp: 7, sp_frost: 21, q: "rare" },
         { id: 12471, title: "Desertwalker Cane", ilvl: 47, int: 4, spi: 13, q: "rare" },
         { id: 11625, title: "Enthralled Sphere", ilvl: 53, int: 14, spi: 5, q: "rare" },
         { id: 11904, title: "Spirit of Aquementas", ilvl: 56, sp: 20, q: "uncommon" },

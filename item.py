@@ -18,7 +18,7 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
 
     xml = response.content.decode()
 
-    p = re.compile("\<error\>(.*?)\<\/error\>")
+    p = re.compile("<error>(.*?)</error>")
     m = p.search(xml)
     if m:
         print("Error for "+item_id+" : "+m.group(1))
@@ -28,7 +28,7 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
     lvlreq = 0
 
     # ID
-    p = re.compile("\<item id=\"([0-9]+)\"")
+    p = re.compile("<item id=\"([0-9]+)\"")
     m = p.search(xml)
     if not m:
         print("No id for "+item_id)
@@ -36,7 +36,7 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
     stats["id"] = int(m.group(1))
 
     # Name
-    p = re.compile("\<name\>\<\!\[CDATA\[([^\]]+)\]\]")
+    p = re.compile(r"<name><!\[CDATA\[([^\]]+)\]\]")
     m = p.search(xml)
     if not m:
         print("No name for "+item_id)
@@ -44,13 +44,13 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
     stats["title"] = m.group(1)
 
     # Item level
-    p = re.compile("\<level\>([0-9]+)\<")
+    p = re.compile("<level>([0-9]+)<")
     m = p.search(xml)
     if m:
         stats["ilvl"] = int(m.group(1))
 
     # json equip data
-    p = re.compile("\<jsonEquip\>\<\!\[CDATA\[(.*?)\]\]\>")
+    p = re.compile(r"<jsonEquip><!\[CDATA\[(.*?)\]\]>")
     m = p.search(xml)
     if m:
         equip = json.loads("{"+m.group(1)+"}")
@@ -84,13 +84,13 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
             lvlreq = int(equip["reqlevel"])
 
     # Two hand
-    p = re.compile("\<inventorySlot id=\"([0-9]+)\"")
+    p = re.compile("<inventorySlot id=\"([0-9]+)\"")
     m = p.search(xml)
     if m and m.group(1) == "17":
         stats["twohand"] = True
 
     # Quality
-    p = re.compile("\<quality id=\"([0-9]+)\"")
+    p = re.compile("<quality id=\"([0-9]+)\"")
     m = p.search(xml)
     if m and m.group(1) == "3":
         stats["q"] = "rare"
@@ -109,14 +109,6 @@ def getItem(item_id, phase = 1, faction = None, pvp = False):
 
     if pvp == True:
         stats["pvp"] = True
-
-    # Level req
-    if lvlreq > 50 and phase < 4:
-        phase = 4
-    elif lvlreq > 40 and phase < 3:
-        phase = 3
-    elif lvlreq > 25 and phase < 2:
-        phase = 2
 
     # Phase
     if phase > 1:

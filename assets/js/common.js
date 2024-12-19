@@ -1,11 +1,11 @@
 export default {
-    uuid: () => {
+    uuid() {
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
             let r = Math.random() * 16 | 0, v = c == "x" ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
     },
-    stats: () => {
+    stats() {
         return {
             int: 0,
             spi: 0,
@@ -21,6 +21,33 @@ export default {
             spell_penetration: 0,
             mana: 0,
         }
+    },
+    baseTalents() {
+        return new Array(49).fill(0);
+    },
+    parseTalents(url) {
+        let m;
+        if (m = url.match(/\/talent-calc\/mage\/([0-9\-]+)/))
+            return this.parseWowheadTalents(m[1]);
+        return null;
+    },
+    parseWowheadTalents(str) {
+        let talents = this.baseTalents();
+        let trees = [0, 16, 32];
+        let tree = 0;
+        let index = 0;
+        let arr = str.split("");
+        for (let value of arr) {
+            if (value == "-") {
+                tree++;
+                index = trees[tree];
+            }
+            else {
+                talents[index] = parseInt(value);
+                index++;
+            }
+        }
+        return talents;
     },
     foods: {
         NONE: 0,

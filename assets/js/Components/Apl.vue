@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import _ from "lodash";
 import apl from "../apl";
 import common from "../common";
+import items from "../items";
 
 const props = defineProps(["modelValue", "player"]);
 const emits = defineEmits(["update:modelValue", "save"]);
@@ -54,8 +55,18 @@ const itemTitle = (item) => {
     let arr = [];
 
     let action = apl.actions().find(a => a.key == item.action.key);
-    if (action)
-        arr.push(action.title);
+    if (action) {
+        if (action.item) {
+            let item = items.gear[action.title].find(i => i.id == action.item);
+            if (item)
+                arr.push(_.capitalize(action.title)+": "+item.title);
+            else
+                arr.push("Use: "+_.capitalize(action.title));
+        }
+        else {
+            arr.push(action.title);
+        }
+    }
 
     if (item.action.key == "Sequence")
         arr.push(item.action.sequence.length+" actions");
@@ -138,7 +149,7 @@ const isDragEnd = computed(() => {
  * Update
  */
 const changed = () => {
-    if (props.modelValue.id.indexOf("default") != -1) {
+    if (apl.isPreset(props.modelValue.id)) {
         props.modelValue.id = common.uuid();
         props.modelValue.name = "";
     }

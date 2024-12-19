@@ -3,6 +3,7 @@ import SimContainer from "./sim_container";
 import { computed, ref, reactive, watch, onMounted, nextTick } from "vue";
 import common from "./common";
 import icons from "./icons";
+import presets from "./presets";
 import items from "./items";
 import aplData from "./apl";
 import { mage as talentTree } from "./talents";
@@ -91,46 +92,6 @@ const addStats = (a, b) => {
         stats[key] = parseFloat(_.get(a, key, 0)) + parseFloat(_.get(b, key, 0));
     return stats;
 };
-
-/*
- * Talents
- */
-const baseTalents = () => {
-    return new Array(49).fill(0);
-};
-const parseTalents = (url) => {
-    let m;
-    if (m = url.match(/\/talent-calc\/mage\/([0-9\-]+)/))
-        return parseWowheadTalents(m[1]);
-    return null;
-};
-const parseWowheadTalents = (str) => {
-    let talents = baseTalents();
-    let trees = [0, 16, 32];
-    let tree = 0;
-    let index = 0;
-    let arr = str.split("");
-    for (let value of arr) {
-        if (value == "-") {
-            tree++;
-            index = trees[tree];
-        }
-        else {
-            talents[index] = parseInt(value);
-            index++;
-        }
-    }
-
-    return talents;
-};
-const talentPresets = () => {
-    return [
-        { name: "Fire", talents: parseWowheadTalents("230005230002-5052000123033151-003") },
-        { name: "Frost Arcane", talents: parseWowheadTalents("2300250310231531--053500030013") },
-        { name: "Frost WC", talents: parseWowheadTalents("230045200003--05350013122301051") },
-    ]
-};
-
 
 /*
  * Gear / loadout
@@ -259,155 +220,6 @@ const isItemSpecial = (id) => {
 };
 
 /*
- * APL
- */
-const defaultApls = () => {
-    let data = [];
-    let item, cond;
-
-    let manaCds = [];
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.GTE;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.PLAYER_MANA_DEFICIT;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 2250;
-    item.action = aplData.getAction("ManaPotion");
-    manaCds.push(item);
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.AND;
-    cond = aplData.condition();
-    cond.condition_type = aplData.condition_type.CMP;
-    cond.op = aplData.condition_op.GTE;
-    cond.values = [aplData.value(), aplData.value()];
-    cond.values[0].value_type = aplData.value_type.PLAYER_MANA_DEFICIT;
-    cond.values[1].value_type = aplData.value_type.CONST;
-    cond.values[1].vfloat = 1200;
-    item.condition.conditions.push(cond);
-    cond = aplData.condition();
-    cond.condition_type = aplData.condition_type.TRUE;
-    cond.values = [aplData.value()];
-    cond.values[0].value_type = aplData.value_type.PLAYER_COOLDOWN_EXISTS;
-    cond.values[0].vint = common.cooldowns.MANA_POTION;
-    item.condition.conditions.push(cond);
-    item.action = aplData.getAction("ManaGem");
-    manaCds.push(item);
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.LT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.PLAYER_MANA_PERCENT;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 10;
-    item.action = aplData.getAction("Evocation");
-    manaCds.push(item);
-
-    let cds = [
-        aplData.getAction("ArcanePower"),
-        aplData.getAction("Combustion"),
-        aplData.getAction("EssenceOfSapphiron"),
-        aplData.getAction("UnstablePower"),
-        aplData.getAction("EphemeralPower"),
-        aplData.getAction("ChaosFire"),
-        aplData.getAction("MindQuickening"),
-    ];
-
-    let frost = aplData.apl();
-    frost.id = "default-frost";
-    frost.name = "Frost";
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.LT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 1.4;
-    item.action = aplData.getAction("Sequence");
-    item.action.sequence = [
-        aplData.getAction("Frostbolt"),
-        aplData.getAction("PowerInfusion"),
-        ...cds
-    ];
-    frost.items.push(item);
-    frost.items = [...frost.items, ...manaCds];
-    item = aplData.item();
-    item.action = aplData.getAction("Sequence");
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.GT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 90;
-    item.action.sequence = cds;
-    frost.items.push(item);
-    item = aplData.item();
-    item.action = aplData.getAction("Frostbolt");
-    frost.items.push(item);
-    data.push(frost);
-
-    let fire = aplData.apl();
-    fire.id = "default-fire";
-    fire.name = "Fire";
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.LT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 1.4;
-    item.action = aplData.getAction("Sequence");
-    item.action.sequence = [
-        aplData.getAction("Scorch"),
-        aplData.getAction("Scorch"),
-        aplData.getAction("Frostbolt"),
-        aplData.getAction("PowerInfusion"),
-        ...cds.slice(1)
-    ];
-    fire.items.push(item);
-    fire.items = [...fire.items, ...manaCds];
-    item = aplData.item();
-    item.action = aplData.getAction("Sequence");
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.GT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 90;
-    item.action.sequence = cds;
-    fire.items.push(item);
-    item = aplData.item();
-    item.action = aplData.getAction("Fireball");
-    fire.items.push(item);
-    data.push(fire);
-
-    let f2 = _.cloneDeep(fire);
-    f2.name = "Fire - delayed combustion"
-    f2.id = "default-fire-d1";
-    f2.items[0].action.sequence.splice(3, 1); // Remove combustion
-    item = aplData.item();
-    item.condition.condition_type = aplData.condition_type.CMP;
-    item.condition.op = aplData.condition_op.GT;
-    item.condition.values = [aplData.value(), aplData.value()];
-    item.condition.values[0].value_type = aplData.value_type.SIM_TIME;
-    item.condition.values[1].value_type = aplData.value_type.CONST;
-    item.condition.values[1].vfloat = 10.0;
-    item.action = aplData.getAction("Combustion");
-    f2.items.splice(1, 0, item);
-    data.push(f2);
-
-    let blank = aplData.apl();
-    blank.id = "default-blank";
-    blank.name = "Blank";
-    data.push(blank);
-
-    return data;
-};
-const isDefaultApl = (id) => {
-    return id.indexOf("default") != -1;
-};
-
-/*
  * Config
  */
 const defaultConfig = () => {
@@ -435,11 +247,11 @@ const simDefaultPlayer = () => {
     return {
         name: "Player",
         race: "Undead",
-        talents: parseTalents("https://www.wowhead.com/classic/talent-calc/mage/230005230002-5052000123033151-003"),
+        talents: common.parseWowheadTalents("230005230002-5052000123033151-003"),
         stats: baseStats("Undead"),
         level: 60,
         items: [],
-        apl: defaultApls()[0],
+        apl: presets.apls[0],
         mage_armor: true,
         mana_spring: true,
         imp_mana_spring: true,
@@ -533,8 +345,8 @@ const loadRaids = () => {
                         player[key] = defPlayer[key];
                 }
                 // Reload preset apl
-                if (isDefaultApl(player.apl.id)) {
-                    let ap = defaultApls().find(a => a.id == player.apl.id);
+                if (aplData.isPreset(player.apl.id)) {
+                    let ap = presets.apls.find(a => a.id == player.apl.id);
                     if (ap)
                         player.apl = ap;
                 }
@@ -987,6 +799,17 @@ const playerImportLoadout = ref(true);
 const selectPlayer = (id) => {
     activePlayerId.value = id;
 };
+const otherPlayerOptions = computed(() => {
+    if (!activeRaid.value)
+        return {};
+    let options = [];
+    for (let player of activeRaid.value.players) {
+        if (player.id == activePlayerId.value)
+            continue;
+        options.push({value: player.id, title: player.name});
+    }
+    return options;
+});
 const confirmDeletePlayer = (player) => {
     raidSelectOpen.value = false;
     confirm({
@@ -1117,7 +940,7 @@ const raceOptions = computed(() => {
 });
 const talentPreset = ref(null);
 const talentPresetOptions = computed(() => {
-    return talentPresets().map(t => { return {title: t.name, value: t.talents}; });
+    return presets.talents.map(t => { return {title: t.name, value: t.talents}; });
 });
 const setTalentPreset = () => {
     if (!activePlayer.value || !talentPreset.value)
@@ -1137,17 +960,6 @@ const activeResultTab = ref("overview");
 /*
  * Config UI
  */
-const otherPlayerOptions = computed(() => {
-    if (!activeRaid.value)
-        return {};
-    let options = [];
-    for (let player of activeRaid.value.players) {
-        if (player.id == activePlayerId.value)
-            continue;
-        options.push({value: player.id, title: player.name});
-    }
-    return options;
-});
 const playerConfigExclusive = (e, key, others) => {
     if (!_.isArray(others))
         others = [others];
@@ -1166,7 +978,7 @@ const playerRadioToggle = (val, key) => {
 };
 const talentImport = ref("");
 const importTalents = () => {
-    let talents = parseTalents(talentImport.value);
+    let talents = common.parseTalents(talentImport.value);
     if (talents)
         activePlayer.value.talents = talents;
     else
@@ -1225,6 +1037,9 @@ const paperdollClick = (slot, type) => {
             itemSearchInput.value.focus();
     });
 };
+const loadoutOptions = computed(() => {
+    return [...otherPlayerOptions.value, ...presets.loadouts.map(l => { return {value: l.name, title: "Preset: "+l.name}})];
+});
 const itemSearch = ref("");
 const itemSearchInput = ref();
 const itemSorting = ref({
@@ -1379,12 +1194,21 @@ const itemClick = (item) => {
     refreshTooltips();
 };
 const copyLoadoutPlayer = ref(null);
-const copyLoadout = (playerId) => {
+const copyLoadout = (source) => {
     if (!activePlayer.value)
         return;
-    let player = activeRaid.value.players.find(p => p.id == playerId);
-    if (player && player.id != activePlayerId.value) {
-        activePlayer.value.loadout = _.cloneDeep(player.loadout);
+    let loadout = null;
+    let preset = presets.loadouts.find(l => l.name == source);
+    if (preset) {
+        loadout = _.cloneDeep(preset.loadout);
+    }
+    else {
+        let player = activeRaid.value.players.find(p => p.id == source);
+        if (player)
+            loadout = _.cloneDeep(player.loadout);
+    }
+    if (loadout) {
+        activePlayer.value.loadout = loadout;
         refreshTooltips();
     }
     nextTick(() => { copyLoadoutPlayer.value = null });
@@ -1409,7 +1233,7 @@ const loadApls = () => {
     return apls;
 };
 const saveApls = (data) => {
-    data = data.filter(a => !isDefaultApl(a.id));
+    data = data.filter(a => !aplData.isPreset(a.id));
     window.localStorage.setItem("apls", JSON.stringify(data));
 };
 const selectApl = (data) => {
@@ -1434,7 +1258,7 @@ const copyPlayerApl = () => {
 };
 const editAplOpen = () => {
     aplModel.value = _.cloneDeep(activePlayer.value.apl);
-    if (isDefaultApl(aplModel.value.id)) {
+    if (aplData.isPreset(aplModel.value.id)) {
         if (aplModel.value.name == "Blank")
             aplModel.value.name = "";
         else
@@ -1445,7 +1269,7 @@ const editAplOpen = () => {
         editApl.value.open(true);
 };
 const deleteApl = (id) => {
-    if (isDefaultApl(id))
+    if (aplData.isPreset(id))
         return;
     apls.value = apls.value.filter(a => a.id != id);
     saveApls(apls.value);
@@ -1630,7 +1454,7 @@ const talentExportData = (talents) => {
     return str;
 };
 const talentImportData = (talents) => {
-    return parseWowheadTalents(talents);
+    return common.parseWowheadTalents(talents);
 };
 const aplExportData = (data) => {
     let minimize = (obj) => {
@@ -1656,7 +1480,7 @@ const aplExportData = (data) => {
             obj.values.forEach((o) => { minimize(o); exportSerialize(aplValueExportKeys(), o); });
     };
 
-    if (isDefaultApl(data.id)) {
+    if (aplData.isPreset(data.id)) {
         return {id: data.id};
     }
     else {
@@ -1694,7 +1518,7 @@ const aplImportData = (data) => {
     data = _.cloneDeep(data);
 
     if (data.id) {
-        let ap = defaultApls().find(a => a.id == data.id);
+        let ap = presets.apls.find(a => a.id == data.id);
         if (ap)
             return ap;
     }
@@ -1900,7 +1724,7 @@ const importSixtyUpgrades = (data) => {
 
     if (data.talents && data.talents.length) {
         let flatTree = talentTree.trees.reduce((acc, t) => [...acc, ...t.talents.rows.flat()], []);
-        player.talents = baseTalents();
+        player.talents = common.baseTalents();
         for (let _talent of data.talents) {
             let index = flatTree.findIndex(t => t.spellIds.indexOf(_talent.spellId) != -1);
             if (index == -1)
@@ -1952,7 +1776,7 @@ const importWSE = (data) => {
         player.race = convertRace(player.race);
 
     if (data.talents)
-        player.talents = parseWowheadTalents(data.talents);
+        player.talents = common.parseWowheadTalents(data.talents);
 
     playerModel.value = player;
     importMessage.value = errors.join("<br>");
@@ -2006,9 +1830,23 @@ watch(() => settings.raid_id, (value) => {
     }
 });
 watch(() => itemSearch.value, refreshTooltips);
-watch(() => activeTab.value, () => {
+watch(() => activePlayerId.value, (value) => {
+    if (activeTab.value == "loadout") {
+        nextTick(() => {
+            if (itemSearchInput.value)
+                itemSearchInput.value.focus();
+        });
+    }
+});
+watch(() => activeTab.value, (value) => {
+    if (value == "loadout") {
+        refreshTooltips();
+        nextTick(() => {
+            if (itemSearchInput.value)
+                itemSearchInput.value.focus();
+        });
+    }
     exportSuccess.value = false;
-    refreshTooltips();
 });
 watch(() => activeGearType.value, refreshTooltips);
 watch(() => activeSlot.value, refreshTooltips);
@@ -2530,7 +2368,7 @@ onMounted(() => {
                         <div class="copy">
                             <select-simple
                                 v-model="copyLoadoutPlayer"
-                                :options="otherPlayerOptions"
+                                :options="loadoutOptions"
                                 @input="copyLoadout"
                                 placeholder="Copy gear from..."
                              />
@@ -2724,8 +2562,9 @@ onMounted(() => {
                             <div class="form-title">Presets</div>
                             <div class="list">
                                 <div
-                                    class="item default"
-                                    v-for="item in defaultApls()"
+                                    class="item preset"
+                                    :class="{active: activePlayer.apl.id == item.id}"
+                                    v-for="item in presets.apls"
                                     :key="item.id"
                                     @click="selectApl(item)"
                                 >
@@ -2864,10 +2703,11 @@ onMounted(() => {
                             <div class="info">
                                 <table>
                                     <tbody>
-                                        <tr><td>Players:</td><td>{{ result.players.length }}</td></tr>
-                                        <tr><td>Iterations:</td><td>{{ result.iterations }}</td></tr>
                                         <tr><td>Execution time:</td><td>{{ result.time.toFixed(2) }}s</td></tr>
-                                        <tr><td>Time / iteration:</td><td>{{ (result.time / result.iterations * 1000).toFixed(2) }}ms</td></tr>
+                                        <template v-if="result.iterations">
+                                            <tr><td>Iterations:</td><td>{{ result.iterations }}</td></tr>
+                                            <tr><td>Time / iteration:</td><td>{{ (result.time / result.iterations * 1000).toFixed(2) }}ms</td></tr>
+                                        </template>
                                     </tbody>
                                 </table>
                             </div>

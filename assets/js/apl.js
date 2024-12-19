@@ -147,4 +147,8 @@ export default {
         }
         return action;
     },
+
+    isPreset(id) {
+        return id.indexOf("preset") === 0;
+    },
 }
