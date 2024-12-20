@@ -14,8 +14,6 @@ pub struct PlayerConfig {
     pub apl: Apl,
     // Buffs
     pub mage_armor: bool,
-    pub mana_spring: bool,
-    pub imp_mana_spring: bool,
     pub dmf_dmg: bool,
     pub soul_revival: bool,
     pub traces_of_silithyst: bool,

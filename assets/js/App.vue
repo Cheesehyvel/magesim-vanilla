@@ -293,8 +293,6 @@ const simDefaultPlayer = () => {
         items: [],
         apl: presets.apls[0],
         mage_armor: true,
-        mana_spring: true,
-        imp_mana_spring: true,
         dmf_dmg: false,
         soul_revival: false,
         traces_of_silithyst: false,
@@ -308,6 +306,8 @@ const defaultPlayer = () => {
         motw: true,
         imp_motw: true,
         moonkin_aura: false,
+        mana_spring: true,
+        imp_mana_spring: true,
         blessing_of_wisdom: true,
         imp_blessing_of_wisdom: true,
         blessing_of_kings: true,
@@ -515,6 +515,12 @@ const simStats = (player) => {
     else if (player.weapon_oil == common.weapon_oils.BRILLIANT_MANA)
         stats.mp5+= 12;
 
+    if (player.mana_spring && faction == "Horde") {
+        x = 25; // 10 every 2 = 25 every 5
+        if (player.imp_mana_spring)
+            x = _.round(x * 1.25);
+        stats.mp5+= x;
+    }
     if (player.blessing_of_wisdom && faction == "Alliance") {
         x = 30;
         if (player.imp_blessing_of_wisdom)
@@ -2333,7 +2339,10 @@ onMounted(() => {
                                         <label>
                                             <input type="checkbox" v-model="activePlayer.mana_spring">
                                             <wowicon icon="mana_spring" />
-                                            <tooltip>Mana Spring Totem</tooltip>
+                                            <tooltip>
+                                                Mana Spring Totem<br>
+                                                While in-game it is a separate effect<br>in the sim it will be converted to mp5.
+                                            </tooltip>
                                         </label>
                                         <label v-if="activePlayer.mana_spring">
                                             <input type="checkbox" v-model="activePlayer.imp_mana_spring">
