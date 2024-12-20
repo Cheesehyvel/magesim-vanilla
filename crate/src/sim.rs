@@ -802,14 +802,12 @@ impl Sim {
             remaining_ticks-= self.queue.len();
 
             if self.target(target_id).ignite_stacks == 0 {
-                // Because we have flagged ignite as fixed_dmg, dmg modifiers are not applied to the dmg yet
+                // We don't apply dmg modifiers to ignite automatically
                 // Instead we want to save those modifiers and apply them to each tick
                 // This is because ignite snapshots the dmg modifers on the first stack application
                 // Tick timing is 2s from initial crit unless the refreshing crit occurs after what would be the last tick.
                 // In that case a new timer is established by the saving crit.
-                let mut modifier = 1.0;
-                modifier*= self.spell_buff_dmg_multiplier(unit_id, spell);
-                modifier*= self.spell_debuff_dmg_multiplier(unit_id, spell, target_id);
+                let modifier = self.spell_buff_dmg_multiplier(unit_id, spell) * self.spell_debuff_dmg_multiplier(unit_id, spell, target_id);
                 let target = self.targets.get_mut(&target_id).unwrap();
                 target.ignite_modifier = modifier;
                 target.ignite_stacks = 1;
@@ -997,14 +995,14 @@ impl Sim {
         self.unit(unit_id).spell_power(spell.school)
     }
 
-    fn spell_buff_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell) -> f64 {
+    fn spell_buff_dmg_multiplier(&self, unit_id: i32, spell: &spell::Spell) -> f64 {
         self.unit(unit_id).buff_spell_dmg_multiplier(spell)
     }
 
-    fn spell_debuff_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
+    fn spell_debuff_dmg_multiplier(&self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
         let mut dmg = 1.0;
 
-        let auras = &self.targets.get_mut(&target_id).expect("TARGET_NOT_FOUND").auras;
+        let auras = &self.targets.get(&target_id).expect("TARGET_NOT_FOUND").auras;
 
         if auras.has_any(aura::FIRE_VULNERABILITY) {
             dmg*= 1.0 + 0.03 * auras.stacks(aura::FIRE_VULNERABILITY, 0) as f64;
@@ -1017,7 +1015,7 @@ impl Sim {
         dmg
     }
 
-    fn spell_crit_dmg_multiplier(&mut self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
+    fn spell_crit_dmg_multiplier(&self, unit_id: i32, spell: &spell::Spell, target_id: i32) -> f64 {
         let mut base = 1.5;
         let mut multi = 1.0;
 
@@ -1092,7 +1090,7 @@ impl Sim {
         }
     }
 
-    fn spell_resist_score(&mut self, unit_id: i32, spell: &spell::Spell, level_based: bool) -> f64 {
+    fn spell_resist_score(&self, unit_id: i32, spell: &spell::Spell, level_based: bool) -> f64 {
         let mut resist_score: f64 = (self.config.target_resistance as f64) - self.unit(unit_id).spell_penetration(spell.school);
         let unit_level = self.unit(unit_id).level();
 
