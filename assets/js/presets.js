@@ -175,27 +175,6 @@ export default {
         { name: "Frost WC", talents: common.parseWowheadTalents("230045200003--05350013122301051") },
     ],
     loadouts: [{
-        name: "Naxxramas",
-        loadout: {
-            head: { item_id: 22498, enchant_id: 24164 },
-            neck: { item_id: 23057, enchant_id: null },
-            shoulder: { item_id: 22983, enchant_id: 29467 },
-            back: { item_id: 23050, enchant_id: null },
-            chest: { item_id: 22496, enchant_id: 20025 },
-            wrist: { item_id: 21186, enchant_id: 20008 },
-            hands: { item_id: 21585, enchant_id: 25078 },
-            waist: { item_id: 22730, enchant_id: null },
-            legs: { item_id: 23070, enchant_id: 24164 },
-            feet: { item_id: 22500, enchant_id: 13890 },
-            finger1: { item_id: 21709, enchant_id: null },
-            finger2: { item_id: 23062, enchant_id: null },
-            trinket1: { item_id: 23207, enchant_id: null },
-            trinket2: { item_id: 23046, enchant_id: null },
-            main_hand: { item_id: 22589, enchant_id: 22749 },
-            off_hand: { item_id: null, enchant_id: null },
-            ranged: { item_id: 22821, enchant_id: null }
-        }
-    }, {
         name: "Molten Core",
         loadout: {
             head: { item_id: 16795, enchant_id: 22844 },
@@ -215,6 +194,48 @@ export default {
             main_hand: { item_id: 17103, enchant_id: 22749 },
             off_hand: { item_id: "10796:1965", enchant_id: null },
             ranged: { item_id: "15283:1959", enchant_id: null }
+        }
+    }, {
+        name: "Naxxramas",
+        loadout: {
+            head: { item_id: 22498, enchant_id: 24164 },
+            neck: { item_id: 21608, enchant_id: null },
+            shoulder: { item_id: 22983, enchant_id: 29467 },
+            back: { item_id: 23050, enchant_id: null },
+            chest: { item_id: 22496, enchant_id: 20025 },
+            wrist: { item_id: 21186, enchant_id: 20008 },
+            hands: { item_id: 21585, enchant_id: 25078 },
+            waist: { item_id: 22730, enchant_id: null },
+            legs: { item_id: 23070, enchant_id: 24164 },
+            feet: { item_id: 22500, enchant_id: 13890 },
+            finger1: { item_id: 21709, enchant_id: null },
+            finger2: { item_id: 23237, enchant_id: null },
+            trinket1: { item_id: 19339, enchant_id: null },
+            trinket2: { item_id: 23046, enchant_id: null },
+            main_hand: { item_id: 22589, enchant_id: 22749 },
+            off_hand: { item_id: null, enchant_id: null },
+            ranged: { item_id: 22821, enchant_id: null }
+        }
+    }, {
+        name: "Naxxramas (Undead)",
+        loadout: {
+            head: { item_id: 22498, enchant_id: 24164 },
+            neck: { item_id: 21608, enchant_id: null },
+            shoulder: { item_id: 22983, enchant_id: 29467 },
+            back: { item_id: 23050, enchant_id: null },
+            chest: { item_id: 23085, enchant_id: 20025 },
+            wrist: { item_id: 23091, enchant_id: 20008 },
+            hands: { item_id: 23084, enchant_id: 25078 },
+            waist: { item_id: 22730, enchant_id: null },
+            legs: { item_id: 23070, enchant_id: 24164 },
+            feet: { item_id: 21344, enchant_id: 13890 },
+            finger1: { item_id: 21709, enchant_id: null },
+            finger2: { item_id: 23031, enchant_id: null },
+            trinket1: { item_id: 23207, enchant_id: null },
+            trinket2: { item_id: 23046, enchant_id: null },
+            main_hand: { item_id: 22589, enchant_id: 22749 },
+            off_hand: { item_id: null, enchant_id: null },
+            ranged: { item_id: 22820, enchant_id: null }
         }
     }],
 };
