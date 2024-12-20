@@ -265,7 +265,7 @@ const unequipFromAllPlayers = (id) => {
 const defaultConfig = () => {
     return {
         rng_seed: 0,
-        duration: 40,
+        duration: 60,
         duration_variance: 0,
         avg_spell_dmg: false,
         target_level: 63,
@@ -274,8 +274,8 @@ const defaultConfig = () => {
         distance: 30,
         reaction_time: 0.3,
         player_delay: 0.1,
-        curse_of_elements: false,
-        curse_of_shadows: false,
+        curse_of_elements: true,
+        curse_of_shadows: true,
         judgement_of_wisdom: false,
     };
 };

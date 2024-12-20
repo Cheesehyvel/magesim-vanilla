@@ -75,39 +75,6 @@ const defaultApls = () => {
         apl.getAction("MindQuickening"),
     ];
 
-    let frost = apl.apl();
-    frost.id = "preset-frost";
-    frost.name = "Frost";
-    item = apl.item();
-    item.condition.condition_type = apl.condition_type.CMP;
-    item.condition.op = apl.condition_op.LT;
-    item.condition.values = [apl.value(), apl.value()];
-    item.condition.values[0].value_type = apl.value_type.SIM_TIME;
-    item.condition.values[1].value_type = apl.value_type.CONST;
-    item.condition.values[1].vfloat = 1.4;
-    item.action = apl.getAction("Sequence");
-    item.action.sequence = [
-        apl.getAction("Frostbolt"),
-        apl.getAction("PowerInfusion"),
-        ...cds
-    ];
-    frost.items.push(item);
-    frost.items = [...frost.items, ...manaCds];
-    item = apl.item();
-    item.action = apl.getAction("Sequence");
-    item.condition.condition_type = apl.condition_type.CMP;
-    item.condition.op = apl.condition_op.GT;
-    item.condition.values = [apl.value(), apl.value()];
-    item.condition.values[0].value_type = apl.value_type.SIM_TIME;
-    item.condition.values[1].value_type = apl.value_type.CONST;
-    item.condition.values[1].vfloat = 90;
-    item.action.sequence = cds;
-    frost.items.push(item);
-    item = apl.item();
-    item.action = apl.getAction("Frostbolt");
-    frost.items.push(item);
-    data.push(frost);
-
     let fire = apl.apl();
     fire.id = "preset-fire";
     fire.name = "Fire";
@@ -157,6 +124,39 @@ const defaultApls = () => {
     item.action = apl.getAction("Combustion");
     f2.items.splice(1, 0, item);
     data.push(f2);
+
+    let frost = apl.apl();
+    frost.id = "preset-frost";
+    frost.name = "Frost";
+    item = apl.item();
+    item.condition.condition_type = apl.condition_type.CMP;
+    item.condition.op = apl.condition_op.LT;
+    item.condition.values = [apl.value(), apl.value()];
+    item.condition.values[0].value_type = apl.value_type.SIM_TIME;
+    item.condition.values[1].value_type = apl.value_type.CONST;
+    item.condition.values[1].vfloat = 1.4;
+    item.action = apl.getAction("Sequence");
+    item.action.sequence = [
+        apl.getAction("Frostbolt"),
+        apl.getAction("PowerInfusion"),
+        ...cds
+    ];
+    frost.items.push(item);
+    frost.items = [...frost.items, ...manaCds];
+    item = apl.item();
+    item.action = apl.getAction("Sequence");
+    item.condition.condition_type = apl.condition_type.CMP;
+    item.condition.op = apl.condition_op.GT;
+    item.condition.values = [apl.value(), apl.value()];
+    item.condition.values[0].value_type = apl.value_type.SIM_TIME;
+    item.condition.values[1].value_type = apl.value_type.CONST;
+    item.condition.values[1].vfloat = 90;
+    item.action.sequence = cds;
+    frost.items.push(item);
+    item = apl.item();
+    item.action = apl.getAction("Frostbolt");
+    frost.items.push(item);
+    data.push(frost);
 
     let blank = apl.apl();
     blank.id = "preset-blank";
