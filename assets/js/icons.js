@@ -1,5 +1,6 @@
 export default {
     icons: {
+        question_mark: "inv_misc_questionmark",
         alliance: "ui_allianceicon",
         horde: "ui_hordeicon-round",
         mage: "classicon_mage",

@@ -46,6 +46,11 @@
         > .default {
             padding: 30px;
             background: var(--color-bg2);
+
+            > .title {
+                font-weight: 600;
+                font-size: 16px;
+            }
         }
 
         .confirm-text {

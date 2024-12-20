@@ -20,6 +20,8 @@ const raceFaction = (race) => {
     return ["Gnome", "Human"].indexOf(race) != -1 ? "Alliance" : "Horde";
 };
 const itemUrl = (id) => {
+    if (isCustomItem(id))
+        return null;
     if (typeof(id) == "object")
         id = id.id;
     if (typeof(id) == "string")
@@ -28,6 +30,10 @@ const itemUrl = (id) => {
 };
 const spellUrl = (id) => {
     return "https://www.wowhead.com/classic/spell="+id;
+};
+const itemTitle = (id) => {
+    let item = getItem(id);
+    return item ? item.title : null;
 };
 const convertRace = (from) => {
     if (from == "Gnome")
@@ -59,6 +65,12 @@ const copyToClipboard = (str) => {
     document.execCommand("copy")
     document.body.removeChild(el);
 };
+const refreshTooltips = () => {
+    if (window.$WowheadPower) {
+        window.$WowheadPower.refreshLinks();
+        nextTick(window.$WowheadPower.refreshLinks);
+    }
+};
 
 /*
  * Stats
@@ -88,8 +100,12 @@ const baseStats = (race) => {
 };
 const addStats = (a, b) => {
     let stats = common.stats();
+    let val = (v) => {
+        v = parseFloat(v);
+        return isNaN(v) ? 0 : v;
+    };
     for (let key in stats)
-        stats[key] = parseFloat(_.get(a, key, 0)) + parseFloat(_.get(b, key, 0));
+        stats[key] = val(_.get(a, key, 0)) + val(_.get(b, key, 0));
     return stats;
 };
 
@@ -105,24 +121,30 @@ const getItem = (slot, id) => {
             return null;
         id = slot;
         for (let key in items.gear) {
-            let item = items.gear[key].find(item => item.id == id);
+            let item = items.gear[key].find(i => i.id == id);
             if (item)
                 return item;
         }
-        return null;
     }
     else {
         if (!id)
             return null;
         slot = loadoutSlotToItemSlot(slot);
-        return items.gear[slot].find(item => item.id == id);
+        let item = items.gear[slot].find(i => i.id == id);
+        if (item)
+            return item;
     }
+    let item = customItems.value.find(i => i.id == id);
+    if (item)
+        return item;
+
+    return null;
 };
 const getEnchant = (slot, id) => {
     if (id === undefined) {
         id = slot;
         for (let key in items.enchants) {
-            let item = items.enchants[key].find(item => item.id == id || item.enchantment_id == id);
+            let item = items.enchants[key].find(i => i.id == id || i.enchantment_id == id);
             if (item)
                 return item;
         }
@@ -130,7 +152,7 @@ const getEnchant = (slot, id) => {
     }
     else {
         slot = loadoutSlotToItemSlot(slot);
-        return items.enchants[slot].find(item => item.id == id || item.enchantment_id == id);
+        return items.enchants[slot].find(i => i.id == id || i.enchantment_id == id);
     }
 };
 const gearUrl = (player, slot) => {
@@ -138,6 +160,8 @@ const gearUrl = (player, slot) => {
     if (!itemSlot.item_id)
         return null;
     let item = getItem(slot, itemSlot.item_id);
+    if (!item)
+        return null;
     let url = itemUrl(item.id);
 
     if (itemSlot.enchant_id) {
@@ -217,6 +241,22 @@ const isItemSpecial = (id) => {
             return true;
     }
     return false;
+};
+const unequipFromAllPlayers = (id) => {
+    let modified = false;
+    for (let raid of raids.value) {
+        for (let player of raid.players) {
+            for (let slot in player.loadout) {
+                if (player.loadout[slot].item_id == id) {
+                    player.loadout[slot].item_id = null;
+                    modified = true;
+                }
+            }
+        }
+    }
+
+    if (modified)
+        saveRaids(raids.value);
 };
 
 /*
@@ -781,6 +821,20 @@ const updateRaid = () => {
         raids.value.push(raid);
         settings.raid_id = raid.id;
     }
+
+    for (let player of raid.players) {
+        if (player.custom_items && player.custom_items.length) {
+            for (let item of player.custom_items) {
+                let index = customItems.value.findIndex(ci => ci.id == item.id);
+                if (index == -1)
+                    customItems.value.push(item);
+                else
+                    customItems.value.splice(index, 1, item);
+            }
+            saveCustomItems(customItems.value);
+        }
+    }
+
     raids.value = _.sortBy(raids.value, "name");
 };
 const factionOptions = [
@@ -860,7 +914,6 @@ const updatePlayer = () => {
 
     let player = null;
     if (isImport) {
-        // Overwrite player
         if (playerModelCopy.value) {
             let copy = activeRaid.value.players.find(p => p.id == playerModelCopy.value);
             if (copy) {
@@ -868,13 +921,17 @@ const updatePlayer = () => {
                     player = _.cloneDeep(playerModel.value);
                     player.id = copy.id;
                     player.name = copy.name;
-                    if (!playerImportLoadout.value)
+                    if (!playerImportLoadout.value) {
                         player.loadout = _.cloneDeep(copy.loadout);
+                        delete player.custom_items;
+                    }
                 }
                 else {
                     player = _.cloneDeep(copy);
-                    if (playerImportLoadout.value)
+                    if (playerImportLoadout.value) {
                         player.loadout = _.cloneDeep(playerModel.value.loadout);
+                        player.custom_items = _.cloneDeep(playerModel.value.custom_items);
+                    }
                 }
             }
         }
@@ -894,6 +951,18 @@ const updatePlayer = () => {
 
     if (!player)
         player = _.cloneDeep(playerModel.value);
+
+    if (player.custom_items && player.custom_items.length) {
+        for (let item of player.custom_items) {
+            let index = customItems.value.findIndex(ci => ci.id == item.id);
+            if (index == -1)
+                customItems.value.push(item);
+            else
+                customItems.value.splice(index, 1, item);
+        }
+        saveCustomItems(customItems.value);
+        delete player.custom_items;
+    }
 
     let index = activeRaid.value.players.findIndex(r => r.id == player.id);
     if (index != -1)
@@ -1048,6 +1117,11 @@ const itemSorting = ref({
     name: "ilvl",
     order: "desc",
 });
+const isCustomItem = (id) => {
+    if (typeof(id) == "object")
+        id = id.id;
+    return typeof(id) == "string" && id.indexOf("custom_") === 0;
+};
 const itemSort = (items, sorting) => {
     if (!sorting || !sorting.name)
         return items;
@@ -1073,7 +1147,12 @@ const itemSort = (items, sorting) => {
     return items.sort((a, b) => {
         let av = _.get(a, sorting.name, null);
         let bv = _.get(b, sorting.name, null);
+        let ac = isCustomItem(a);
+        let bc = isCustomItem(b);
         let result = 0;
+
+        if (ac && !bc) return -1;
+        if (!ac && bc) return 1;
 
         if (sorting.name == "phase") {
             if (!av) av = 1;
@@ -1114,10 +1193,15 @@ const itemList = computed(() => {
         list: [],
     };
 
-    if (data.type == "enchant")
-        data.list = _.clone(items.enchants[data.slot]);
-    else
-        data.list = _.clone(items.gear[data.slot]);
+    if (data.type == "enchant") {
+        data.list = items.enchants[data.slot];
+    }
+    else {
+        data.list = items.gear[data.slot];
+        let custom = customItems.value.filter(ci => ci.slot == data.slot);
+        if (custom.length)
+            data.list = [...custom, ...data.list];
+    }
 
     data.list = data.list.filter(item => {
         if (itemSearch.value.length) {
@@ -1216,11 +1300,75 @@ const copyLoadout = (source) => {
     nextTick(() => { copyLoadoutPlayer.value = null });
 };
 
-const refreshTooltips = () => {
-    if (window.$WowheadPower) {
-        window.$WowheadPower.refreshLinks();
-        nextTick(window.$WowheadPower.refreshLinks);
-    }
+const loadCustomItems = () => {
+    let data = window.localStorage.getItem("custom_items");
+    if (data)
+        data = JSON.parse(data);
+    return data ? data : [];
+};
+const saveCustomItems = (data) => {
+    window.localStorage.setItem("custom_items", JSON.stringify(data));
+};
+const customItems = ref(loadCustomItems());
+const customItemModel = ref(null);
+const editCustomItem = ref();
+const missingItem = ref();
+const missingItemOpen = () => {
+    if (!missingItem.value)
+        return;
+    missingItem.value.open(true);
+};
+const createCustomItemOpen = () => {
+    if (!editCustomItem.value || !activeSlot.value)
+        return;
+    if (missingItem.value)
+        missingItem.value.close();
+    customItemModel.value = {
+        is_new: true,
+        id: "custom_"+common.uuid(),
+        slot: activeSlot.value,
+        title: "",
+        ilvl: 1,
+        sp: null,
+        sp_arcane: null,
+        sp_fire: null,
+        sp_frost: null,
+        int: null,
+        spi: null,
+        mp5: null,
+        hit: null,
+        crit: null,
+        q: "epic",
+        twohand: false,
+    };
+    editCustomItem.value.open(true);
+};
+const editCustomItemOpen = (item) => {
+    if (!editCustomItem.value)
+        return;
+    customItemModel.value = _.cloneDeep(item);
+    editCustomItem.value.open(true);
+};
+const updateCustomItem = () => {
+    if (!customItemModel.value)
+        return;
+    delete customItemModel.value.is_new;
+    let index = customItems.value.findIndex(ci => ci.id == customItemModel.value.id);
+    if (index === -1)
+        customItems.value.push(customItemModel.value);
+    else
+        customItems.value.splice(index, 1, customItemModel.value);
+    saveCustomItems(customItems.value);
+    if (editCustomItem.value)
+        editCustomItem.value.close();
+};
+const deleteCustomItem = (item) => {
+    confirm({
+        text: "Do you want to delete "+item.title+"?",
+    }).then(() => {
+        customItems.value = customItems.value.filter(ci => ci.id != item.id);
+        unequipFromAllPlayers(item.id);
+    });
 };
 
 /*
@@ -1422,10 +1570,14 @@ const statsImportData = (data) => {
 const loadoutExportData = (loadout) => {
     loadout = _.cloneDeep(loadout);
     for (let key in loadout) {
-        if (loadout[key].item_id)
+        if (loadout[key].item_id) {
             loadout[key] = [loadout[key].item_id, loadout[key].enchant_id ? loadout[key].enchant_id : 0];
-        else
+            if (isCustomItem(loadout[key][0]))
+                loadout[key].push(customItems.value.find(ci => ci.id == loadout[key][0]));
+        }
+        else {
             loadout[key] = [0,0];
+        }
     }
     let data = [];
     for (let key of loadoutSlots())
@@ -1542,13 +1694,23 @@ const exportPlayerData = (player) => {
     exportSerialize(playerExportKeys(), player);
     return player;
 };
-const importPlayerData = (data) => {
-    data = _.cloneDeep(data);
+const importPlayerData = (original) => {
+    let data = _.cloneDeep(original);
     importDeserialize(playerExportKeys(), data, defaultPlayer());
     data.loadout = loadoutImportData(data.loadout);
     data.bonus_stats = statsImportData(data.bonus_stats);
     data.talents = talentImportData(data.talents);
     data.apl = aplImportData(data.apl);
+
+    let custom = [];
+    let key = playerExportKeys().findIndex(k => k == "loadout");
+    for (let slot in original.x[key]) {
+        if (original.x[key][slot].length >= 3)
+            custom.push(original.x[key][slot][2]);
+    }
+    if (custom.length)
+        data.custom_items = custom;
+
     return data;
 };
 const exportRaidData = (raid) => {
@@ -1866,6 +2028,9 @@ watch(() => activePlayer.value, () => {
 watch(() => result.value, () => {
     activeResultTab.value = "overview";
     resultHidden.value = false;
+});
+watch(() => customItems.value, (value) => {
+    saveCustomItems(value);
 });
 
 /*
@@ -2387,13 +2552,22 @@ onMounted(() => {
                                         :class="{active: activeSlot == slot && activeGearType == 'gear'}"
                                         @click="paperdollClick(slot)"
                                     >
-                                        <a
-                                            v-if="activePlayer.loadout[slot].item_id"
-                                            :href="gearUrl(activePlayer, slot)"
-                                            data-wh-icon-size="large"
-                                            data-whtticon="false"
-                                            @click.prevent
-                                        ></a>
+                                       <template v-if="activePlayer.loadout[slot].item_id">
+                                            <span
+                                                class="custom-icon"
+                                                v-if="isCustomItem(activePlayer.loadout[slot].item_id)"
+                                            >
+                                                <wowicon icon="question_mark" />
+                                                <tooltip>Custom: {{ itemTitle(activePlayer.loadout[slot].item_id) }}</tooltip>
+                                            </span>
+                                            <a
+                                                :href="gearUrl(activePlayer, slot)"
+                                                data-wh-icon-size="large"
+                                                data-whtticon="false"
+                                                @click.prevent
+                                                v-else
+                                            ></a>
+                                        </template>
                                     </div>
                                     <div class="papers">
                                         <div
@@ -2479,6 +2653,9 @@ onMounted(() => {
                                     <div><span>Up/Down:</span> <span>Equip previous/next item in the list</span></div>
                                 </div>
                             </div>
+                            <div class="custom-item-button">
+                                <button class="btn btn-primary" @click="createCustomItemOpen">Create item</button>
+                            </div>
                         </div>
                         <div class="items">
                             <table v-if="itemList.list">
@@ -2517,7 +2694,21 @@ onMounted(() => {
                                         :key="item.id"
                                         @click="itemClick(item)"
                                     >
-                                        <td class="title">
+                                        <td class="title" v-if="isCustomItem(item)">
+                                            <wowicon icon="question_mark" />
+                                            <span class="middle" :class="'quality-'+item.q">
+                                                {{ item.title }}
+                                            </span>
+                                            <span class="middle edit" @click.stop="editCustomItemOpen(item)">
+                                                <micon icon="edit" />
+                                                <tooltip>Edit item</tooltip>
+                                            </span>
+                                            <span class="middle delete" @click.stop="deleteCustomItem(item)">
+                                                <micon icon="delete" />
+                                                <tooltip>Delete item</tooltip>
+                                            </span>
+                                        </td>
+                                        <td class="title" v-else>
                                             <a
                                                 :href="itemList.type == 'enchant' ? spellUrl(item.id) : itemUrl(item.id)"
                                                 :class="'quality-'+_.get(item, 'q', itemList.type == 'enchant' ? 'uncommon' : 'epic')"
@@ -2540,6 +2731,9 @@ onMounted(() => {
                             </table>
                             <div class="empty" v-else>
                                 No results
+                            </div>
+                            <div class="missing-item-button">
+                                <button class="btn btn-secondary small" @click="missingItemOpen">Can't find an item?</button>
                             </div>
                         </div>
                     </div>
@@ -2894,6 +3088,91 @@ onMounted(() => {
                 </div>
                 <div class="buttons">
                     <button class="btn btn-primary" @click="updateApl">Save rotation</button>
+                </div>
+            </div>
+        </spotlight>
+
+        <spotlight ref="missingItem" v-slot="{ close }">
+            <div class="default">
+                <div class="title">Can't find an item?</div>
+                <p>
+                    Only a selection of the most common items are present in the sim.<br>
+                    Here's what you can do about it:
+                </p>
+                <p>
+                    <span class="link" @click="createCustomItemOpen">Create a custom item</span><br>
+                    This allows you to create an item with custom stats. The item is saved in your browser and is only available to you.
+                    It will also be present in your exports if it is equipped by a player.
+                </p>
+                <p>
+                    <span class="link" @click="activeTab = 'config'; close();">Add bonus stats</span><br>
+                    A quick solution where you can simply add the stats of your missing item directly to the player.<br>
+                    Though it can become cumbersome when you want to switch items.
+                </p>
+                <p>
+                    <a href="https://github.com/Cheesehyvel/magesim-vanilla/issues/new?title=Missing%20item:%20" target="_blank">
+                        Create an issue
+                    </a><br>
+                    If you think this item should be part of the list, you can tell me about it.
+                </p>
+            </div>
+        </spotlight>
+
+        <spotlight ref="editCustomItem">
+            <div class="default custom-item-edit" v-if="customItemModel">
+                <div class="form-title" v-if="customItemModel.is_new">Create item ({{ customItemModel.slot }})</div>
+                <div class="form-title" v-else>Edit item ({{ customItemModel.slot }})</div>
+                <div class="form-cols">
+                    <div class="form-item">
+                        <label>Name</label>
+                        <input type="text" v-model="customItemModel.title">
+                    </div>
+                </div>
+                <div class="form-cols">
+                    <div class="form-item">
+                        <label>Spell power</label>
+                        <input type="text" v-model.number="customItemModel.sp">
+                    </div>
+                    <div class="form-item">
+                        <label><span class="sp-arcane">Arcane</span></label>
+                        <input type="text" v-model.number="customItemModel.sp_arcane">
+                    </div>
+                    <div class="form-item">
+                        <label><span class="sp-fire">Fire</span></label>
+                        <input type="text" v-model.number="customItemModel.sp_fire">
+                    </div>
+                    <div class="form-item">
+                        <label><span class="sp-frost">Frost</span></label>
+                        <input type="text" v-model.number="customItemModel.sp_frost">
+                    </div>
+                </div>
+                <div class="form-cols">
+                    <div class="form-item">
+                        <label>Hit %</label>
+                        <input type="text" v-model.number="customItemModel.hit">
+                    </div>
+                    <div class="form-item">
+                        <label>Crit %</label>
+                        <input type="text" v-model.number="customItemModel.crit">
+                    </div>
+                    <div class="form-item">
+                        <label>Intellect</label>
+                        <input type="text" v-model.number="customItemModel.int">
+                    </div>
+                    <div class="form-item">
+                        <label>Spirit</label>
+                        <input type="text" v-model.number="customItemModel.spi">
+                    </div>
+                    <div class="form-item">
+                        <label>Mp5</label>
+                        <input type="text" v-model.number="customItemModel.mp5">
+                    </div>
+                </div>
+                <div class="form-item" v-if="customItemModel.slot == 'main_hand'">
+                    <checkbox label="Two handed"><input type="checkbox" v-model="customItemModel.twohand"></checkbox>
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" @click="updateCustomItem">Save item</button>
                 </div>
             </div>
         </spotlight>
