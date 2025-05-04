@@ -1231,3 +1231,14 @@ button {
         }
     }
 }
+
+.pvp-badge {
+    display: inline-block;
+    font-size: 0.7em;
+    background-color: #f44336;
+    color: white;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+}

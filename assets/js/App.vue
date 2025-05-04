@@ -2727,6 +2727,7 @@ onMounted(() => {
                                             >
                                                 {{ item.title }}
                                             </a>
+                                          <span v-if="item.pvp" class="pvp-badge">PVP</span>
                                         </td>
                                         <td v-if="itemList.type != 'enchant'">{{ item.ilvl }}</td>
                                         <td><spell-power :value="item" /></td>
