@@ -1209,12 +1209,13 @@ const itemList = computed(() => {
             data.list = [...custom, ...data.list];
     }
 
+    let faction_str = activeRaid.value.faction.toLowerCase().substr(0, 1);
     data.list = data.list.filter(item => {
         if (itemSearch.value.length) {
             if (item.title.toLowerCase().indexOf(itemSearch.value.toLowerCase()) == -1)
                 return false;
         }
-        if (item.hasOwnProperty("faction") && item.faction != activeRaid.value.faction)
+        if (item.hasOwnProperty("faction") && item.faction != faction_str)
             return false;
         return true;
     });
